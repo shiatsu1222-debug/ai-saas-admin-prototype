@@ -304,7 +304,7 @@ const platformMain = [
 const platformResources = ["平台公共资源","模型管理","AI 预算与成本","支付管理","归因配置","资源配额（草案）"]
   .map(name=>entry(platformModule(name)));
 const platformSettings = [["系统管理","system","settings"],["Telegram 机器人","telegram","send"]];
-const tenantNav = [[labels.myapps,"myapps","app"],[labels.business,"business","chart"],[labels.staff,"staff","people"]];
+const tenantNav = [[labels.business,"business","chart"],[labels.myapps,"myapps","app"],[labels.staff,"staff","people"]];
 const appCommon = [["经营概览","app","grid"]];
 const appEntry = (name,label=name) => [label,routeFor(appModule(name))];
 const appGroups = [
@@ -350,7 +350,7 @@ function renderChrome() {
           navGroup("平台分析",[entry(platformModule("平台经营分析"))])+navGroup("平台设置",platformSettings) :
           navGroup("租户工作台",tenantNav)+navDetails("组织与消息","layers",visibleCatalog[1].modules.filter(m=>!aliases[m.name]).map(entry))}
     </nav>
-    <div class="sidebar-foot"><span class="dot"></span>演示环境 <span style="margin-left:auto">v0.49</span></div>`;
+    <div class="sidebar-foot"><span class="dot"></span>演示环境 <span style="margin-left:auto">v0.50</span></div>`;
   document.querySelector("#topbar").innerHTML = `
     <div class="crumb">${btn("","mobile","","icon mobile-menu","menu").replace('data-action="mobile"','aria-label="菜单" data-action="mobile"')}<button class="btn nav-back" data-action="back" ${navigationIndex===0?"disabled":""}>${icon("back",16)}返回上一页</button><span class="root-crumb" title="${esc(inApp?`${tenantName(activeApp)} · ${scope}`:scope)}">${esc(inApp?`${tenantName(activeApp)} / ${scope}`:scope)}</span><span class="root-chevron">${icon("chevron",13)}</span>${productCrumb}<strong>${esc(labels[route] || moduleById[route]?.name)}</strong></div>
     <div class="top-actions">
