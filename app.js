@@ -407,7 +407,7 @@ function renderChrome() {
           navGroup("平台分析",[entry(platformModule("平台经营分析"))])+navGroup("平台设置",platformSettings) :
           navGroup("租户工作台",tenantNav)+navDetails("组织与消息","layers",visibleCatalog[1].modules.filter(m=>!aliases[m.name]).map(entry))}
     </nav>
-    <div class="sidebar-foot"><span class="dot"></span>演示环境 <span style="margin-left:auto">v0.52</span></div>`;
+    <div class="sidebar-foot"><span class="dot"></span>演示环境 <span style="margin-left:auto">v0.53</span></div>`;
   document.querySelector("#topbar").innerHTML = `
     <div class="crumb">${btn("","mobile","","icon mobile-menu","menu").replace('data-action="mobile"','aria-label="菜单" data-action="mobile"')}<button class="btn nav-back" data-action="back" ${navigationIndex===0?"disabled":""}>${icon("back",16)}${esc(returnLabel||"返回上一页")}</button><span class="root-crumb" title="${esc(inApp?`${tenantName(activeApp)} · ${scope}`:scope)}">${esc(inApp?`${tenantName(activeApp)} / ${scope}`:scope)}</span><span class="root-chevron">${icon("chevron",13)}</span>${productCrumb}<strong>${esc(labels[route] || moduleById[route]?.name)}</strong></div>
     <div class="top-actions">
@@ -421,8 +421,19 @@ function overview() {
     ["活跃租户",db.tenants.filter(t=>t.active).length,"people","","本月新增 1 个"],
     ["业务产品",db.apps.length,"app","blue",`${db.apps.filter(isDelivered).length} 个已交付 · ${pending} 个待交付`],
     ["AI 生成任务",range===7?"18,642":range===30?"74,386":"224,870","ai","teal","成功率 96.8%"],
-    ["终端支付金额",range===7?"₹126,480":range===30?"₹492,750":"₹1,430,260","card","amber","已排除测试交易"],
   ];
+  const samplePayments={
+    7:[126480,2340],30:[492750,9160],90:[1430260,27480],
+  };
+  const [rupeeTotal,dollarTotal]=samplePayments[range];
+  const paymentsCard=`<div class="card metric">
+    <div class="metric-top">${tile("card","amber")}用户成功支付金额</div>
+    <dl class="platform-payment-totals">
+      <div><dt>INR</dt><dd>₹${formatNumber(rupeeTotal)}</dd></div>
+      <div><dt>USD</dt><dd>US$${formatNumber(dollarTotal)}</dd></div>
+    </dl>
+    <small>近 ${range} 天 · 演示数据</small>
+  </div>`;
   const work = pendingWork(db.apps);
   const delivery = work.filter(item=>item.target==="initialize");
   const blocked=delivery.filter(item=>item.blocked);
@@ -433,7 +444,7 @@ function overview() {
       ${card(cardHead("交付阻塞")+workQueue(blocked)+
         (ready.length?cardHead("待确认交付")+workQueue(ready):""))}
     </div>
-    <section class="metrics">${metrics.map(([label,value,symbol,color,detail])=>`<div class="card metric"><div class="metric-top">${tile(symbol,color)}${label}</div><strong>${value}</strong><small>${detail}</small></div>`).join("")}</section>`+
+    <section class="metrics">${metrics.map(([label,value,symbol,color,detail])=>`<div class="card metric"><div class="metric-top">${tile(symbol,color)}${label}</div><strong>${value}</strong><small>${detail}</small></div>`).join("")}${paymentsCard}</section>`+
     card(cardHead("经营趋势","生成任务与支付订单数量",`<div class="segmented">${[7,30,90].map(n=>`<button data-action="range" data-value="${n}" class="${range===n?"selected":""}" aria-pressed="${range===n}">近 ${n} 天</button>`).join("")}</div>`)+
       `<div class="chart"><canvas id="chart" aria-label="生成任务和支付订单趋势图"></canvas></div><div class="legend"><span><i></i>生成任务</span><span><i></i>支付订单</span></div>`);
 }

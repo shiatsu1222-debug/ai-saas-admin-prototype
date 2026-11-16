@@ -72,6 +72,10 @@ main { max-width:1600px; margin:auto; padding:25px 28px 36px; outline:none }
 .tile.blue { background:#e8f1ff; color:#386ac9 }
 .tile.amber { background:#fff3e2; color:#a9650e }
 .metric strong { font-size:26px; display:block; margin:6px 0 2px; font-variant-numeric:tabular-nums; letter-spacing:-.6px }
+.platform-payment-totals { display:grid; gap:4px; margin:7px 0 3px }
+.platform-payment-totals > div { display:flex; align-items:baseline; justify-content:space-between; gap:7px; flex-wrap:wrap }
+.platform-payment-totals dt { color:var(--muted); font-size:11px; font-weight:650 }
+.platform-payment-totals dd { margin:0; font-size:18px; font-weight:700; font-variant-numeric:tabular-nums }
 .delta { color:var(--green); font-weight:650; margin-right:6px }
 .overview-grid { display:grid; grid-template-columns:minmax(265px,1fr) minmax(0,1.6fr); gap:15px; margin-bottom:16px }
 .platform-queues { grid-template-columns:repeat(2,minmax(0,1fr)) }
