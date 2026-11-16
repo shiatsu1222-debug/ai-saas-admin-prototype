@@ -30,6 +30,22 @@ const root = document.querySelector("#main");
 const visibleCatalog = catalog.map((domain, d) => ({...domain, modules:domain.modules.map((module,m) => ({...module,id:`c-${d}-${m}`,domain:domain.name}))}));
 const moduleById = Object.fromEntries(visibleCatalog.flatMap(domain => domain.modules.map(module => [module.id,module])));
 const appModules = ["图片创作","视频创作","人像工具","角色聊天","剧集与剧情","直播互动","福利与活动"];
+const businessPermissions = {
+  materials:"素材库", templates:"模板库", content:"前台内容", features:"功能开放",
+  growth:"投放与增长", products:"付费墙与套餐", rewards:"福利活动",
+  users:"用户查询", support:"在线客服与反馈", reports:"举报查询", orders:"订单查询",
+  tasks:"生成任务", aiPricing:"AI 消耗规则", analytics:"经营分析", diagnosis:"运营诊断",
+};
+const exceptionPermissions = {
+  compensate:"单人补发", batchRewards:"批量发放奖励", exportOrders:"订单明细导出",
+  refundInitiate:"现金退款发起",refundReview:"现金退款复核",
+};
+const permissions = {...businessPermissions,...exceptionPermissions};
+const legacyGrants = {
+  "运营与发布":["materials","templates","content","features","growth","products","rewards","tasks","aiPricing","analytics","diagnosis"],
+  "仅查订单":["orders"],
+  "查询与补发":["users","support","reports","orders","tasks","compensate"],
+};
 const accounts = {platform:"平台超级管理员",owner:"租户最高管理员",operator:"运营 1",operator2:"运营 2",support:"客服"};
 const steps = ["归属与入口","结构与配置来源","功能与依赖","运营内容和规则","公共服务关联","核对与交付"];
 const stepFields = [
@@ -57,10 +73,14 @@ const seeded = {
   ledger:[],audit:[],
 };
 let db = structuredClone(seeded);
-try {
-  const raw = JSON.parse(localStorage.getItem(stateKey));
-  if (raw && Array.isArray(raw.apps) && raw.grants) db = raw;
-} catch {}
+function loadDemoData(snapshot) {
+  try {
+    const raw=JSON.parse(snapshot);
+    if (raw && Array.isArray(raw.apps) && raw.grants) return raw;
+  } catch {}
+  return structuredClone(seeded);
+}
+try { db=loadDemoData(localStorage.getItem(stateKey)); } catch {}
 let role = "platform";
 let route = "overview";
 let appId = "viora";
@@ -74,9 +94,9 @@ let navigationContext = history.state?.role === role && history.state.navigation
 let toastTimer;
 const userDirectoryFilters = {query:"",tenant:"",app:"",status:""};
 const demoUserProfiles = {
-  "viora:U-10328":{type:"邮箱账号",status:"正常",contact:"m***@example.com",joined:"2026-10-22",lastActive:"2026-11-13",source:"广告投放"},
+  "viora:U-10328":{type:"邮箱账号",status:"正常",contact:"meera@example.com",joined:"2026-10-22",lastActive:"2026-11-13",source:"广告投放"},
   "viora:U-10346":{type:"游客",status:"正常",joined:"2026-10-30",lastActive:"2026-11-12",source:"自然流量"},
-  "studio:U-22015":{type:"邮箱账号",status:"受限",contact:"s***@example.com",joined:"2026-11-02",lastActive:"2026-11-10",source:"邀请链接"},
+  "studio:U-22015":{type:"邮箱账号",status:"受限",contact:"sora@example.com",joined:"2026-11-02",lastActive:"2026-11-10",source:"邀请链接"},
   "drai:U-10328":{type:"游客",status:"正常",joined:"2026-11-04",lastActive:"2026-11-11",source:"自然流量"},
 };
 const userProfile = user => demoUserProfiles[`${user.app}:${user.id}`] || {};
@@ -88,13 +108,22 @@ const tenantName = app => tenantFor(app)?.name || "—";
 const currentTenant = () => db.tenants.find(tenant => tenant.id === tenantId);
 function accessibleApps() {
   if (isPlatform()) return db.apps;
-  if (role === "owner") return db.apps.filter(app => app.tenant === tenantId && tenantFor(app)?.active);
-  return db.apps.filter(app => app.tenant === tenantId && tenantFor(app)?.active && db.grants[role]?.[app.id]);
+  return db.apps.filter(app => app.tenant === tenantId && tenantFor(app)?.active &&
+    (isDelivered(app) || app.type === "现有 App 接入") &&
+    (role === "owner" || assignedPermissions(role,app.id).some(key=>permissionCeiling(app).includes(key))));
 }
 const inScope = app => accessibleApps().some(item => item.id === app);
-const canOperate = (id=appId) => isPlatform() || role === "owner" || db.grants[role]?.[id] === "运营与发布";
-const canSupport = (id=appId) => isPlatform() || role === "owner" || db.grants[role]?.[id] === "查询与补发";
-const canReadTransactions = (id=appId) => isPlatform() || role === "owner" || ["仅查订单","查询与补发"].includes(db.grants[role]?.[id]);
+function assignedPermissions(employee,id) {
+  const grant = db.grants[employee]?.[id];
+  return Array.isArray(grant) ? grant : legacyGrants[grant] || [];
+}
+const permissionCeiling = app => app?.businessCeiling ?? Object.keys(permissions);
+function hasPermission(key, app=currentApp()) {
+  return Boolean(app && (isPlatform() || (
+    inScope(app.id) && permissionCeiling(app).includes(key) &&
+    (role === "owner" || assignedPermissions(role,app.id).includes(key))
+  )));
+}
 const isDelivered = app => app?.status === "已交付";
 function log(action, app = appId) {
   db.audit.unshift({who:accounts[role],action,app,at:new Date().toLocaleString("zh-CN")});
@@ -109,15 +138,17 @@ function say(message) {
 }
 const labels = {
   overview:"平台总览",tenants:"租户管理",apps:"App 管理",initialize:"产品初始化",
-  myapps:"我的 App",staff:"人员与权限",business:"多 App 经营分析",app:"App 运营总览",features:"功能与发布",
-  users:"用户与售后",tasks:"生成任务",orders:"交易订单",reports:"内容举报",products:"商品管理",templates:"素材与模板",
+  myapps:"我的 App",staff:"人员与权限",business:"多 App 经营分析",app:"经营概览",features:"功能开关与开放范围",
+  users:"用户",tasks:"生成任务",orders:"订单与支付记录",reports:"投诉建议与举报",products:"付费墙与套餐",templates:"模板库",
+  materials:"素材库",support:"在线客服",aiPricing:"AI 消耗规则",
   directory:"用户管理",system:"系统管理",telegram:"Telegram 机器人",audit:"操作审计",
 };
 const aliases = {
   "租户管理":"tenants","功能授权":"tenants","App 管理":"apps","产品初始化":"initialize","平台运行与审计":"audit",
   "我的 App":"myapps","人员与权限":"staff","多 App 经营分析":"business","功能配置与发布":"features",
-  "素材与创作模板":"templates","用户管理":"users","用户权益":"users","客服与反馈":"users","商品管理":"products",
+  "素材与创作模板":"templates","用户管理":"users","用户权益":"users","客服与反馈":"support","商品管理":"products",
   "生成任务":"tasks","交易订单":"orders","内容举报":"reports","经营机器人管理（草案）":"telegram",
+  "平台协作":"features",
 };
 const operationalModules = {
   "平台公共资源": {entity:"公共资源",fields:["资源名称","当前版本","授权范围"],sample:["Portrait Motion","v2.0","星海运营团队"]},
@@ -142,24 +173,40 @@ const routeFor = module => aliases[module.name] || module.id;
 const moduleTitle = module => labels[routeFor(module)] || module.name;
 const platformModule = name => visibleCatalog[0].modules.find(module=>module.name===name);
 const appModule = name => visibleCatalog[2].modules.find(module=>module.name===name);
+aliases["角色聊天"] = appModule("角色管理").id;
+for (const [name,title] of [["角色管理","角色与聊天"],["前台内容运营","轮播与营销位"],
+  ["流量分发（草案）","内容投放范围"],["App 归因运营（草案）","来源归因"],["消息运营","端内通知"],["运营诊断","诊断日志"]]) {
+  labels[appModule(name).id] = title;
+}
+const appModulePermissions = {
+  "前台内容运营":"content","角色管理":"content","角色聊天":"content","图片创作":"content","视频创作":"content",
+  "人像工具":"content","剧集与剧情":"content","直播互动":"content","福利与活动":"rewards",
+  "渠道与推客（草案）":"growth","营销短链与落地页（草案）":"growth","投放计划":"growth",
+  "流量分发（草案）":"growth","App 归因运营（草案）":"growth","消息运营":"growth",
+  "单 App 经营分析":"analytics","运营诊断":"diagnosis",
+};
+const appRoutePermissions = {
+  features:"features",templates:"templates",materials:"materials",users:"users",reports:"reports",
+  support:"support",tasks:"tasks",products:"products",orders:"orders",aiPricing:"aiPricing",
+};
 function moduleAllowed(module, app=currentApp()) {
   if (isPlatform()) return true;
   if (module.domain === "租户工作台") return role === "owner" || module.name === "我的 App";
   if (module.domain !== "App 运营" || !app || !inScope(app.id)) return false;
-  const path = routeFor(module);
-  if (path === "orders") return canReadTransactions(app.id);
-  if (["users","reports","tasks"].includes(path)) return canSupport(app.id) || (path === "tasks" && canOperate(app.id));
+  const permission = appRoutePermissions[routeFor(module)] || appModulePermissions[module.name];
   const index = appModules.indexOf(module.name);
-  return canOperate(app.id) && (index < 0 || tenantFor(app)?.allowed.includes(index));
+  return hasPermission(permission,app) && (index < 0 || tenantFor(app)?.allowed.includes(index));
 }
 function allowedRoute(target, app=currentApp()) {
+  if (appRoute(target) && !app) return false;
   if (isPlatform()) return true;
   if (["system","telegram","directory"].includes(target)) return false;
   if (target === "myapps") return true;
   if (["staff","business"].includes(target)) return role === "owner";
   if (moduleById[target]) return moduleAllowed(moduleById[target],app);
   if (!app || !inScope(app.id)) return false;
-  if (target === "app") return true;
+  if (target === "app") return hasPermission("analytics",app);
+  if (appRoutePermissions[target]) return hasPermission(appRoutePermissions[target],app);
   return visibleCatalog[2].modules.some(module => routeFor(module) === target && moduleAllowed(module,app));
 }
 function saveNavigation(replace = true) {
@@ -193,8 +240,11 @@ function go(target, query="", nextAppId=appId, nextStep=step) {
   saveNavigation(!changed);
   showPage();
 }
-function selectApp(id, target = "app", query="") {
+function selectApp(id, target, query="") {
   const app=accessibleApps().find(app=>app.id===id);
+  if (app && !target) target=["app",...appGroupsForRole().flatMap(([, ,entries])=>entries.map(([,path])=>path))]
+    .find(path=>allowedRoute(path,app));
+  if (!target) { say("当前 App 暂无可打开的业务页面"); return; }
   if (!app || !allowedRoute(target,app)) { say("当前账号没有该 App 或页面的权限"); return; }
   go(target,query,id,0);
 }
@@ -212,12 +262,13 @@ function appTable(list, full = false) {
   const headers = ["业务 App","所属租户","交付状态","已生效功能","操作"];
   return table(headers, list.map(app => [
     appName(app),esc(tenantName(app)),appStatus(app),`${app.live.length} 项`,
-    `<div class="actions">${isPlatform()&&full&&!isDelivered(app)?btn("继续初始化","initApp",app.id,"ghost"):btn("进入工作区","openApp",app.id,"ghost")}</div>`,
+    `<div class="actions">${isPlatform()&&full?btn("App 详情","appDetail",app.id,"ghost"):""}${isPlatform()&&full&&!isDelivered(app)?btn("继续初始化","initApp",app.id,"ghost"):btn("进入工作区","openApp",app.id,"ghost")}</div>`,
   ]));
 }
 function navButton(label,target,symbol = "") {
   const active=route===target;
-  const parent=target==="system" && ["audit",platformModule("平台安全设置").id,platformModule("终端交付配置（批次待定）").id].includes(route);
+  const parent=(target==="system" && ["audit",platformModule("平台安全设置").id].includes(route)) ||
+    (target==="apps" && route===platformModule("终端交付配置（批次待定）").id);
   return `<button class="${active||parent?"active":""}" ${active?'aria-current="page"':parent?'aria-current="location"':""} data-action="go" data-value="${target}">${symbol?icon(symbol):""}${esc(label)}</button>`;
 }
 function navGroup(title, entries) {
@@ -239,19 +290,32 @@ const platformResources = ["平台公共资源","模型管理","AI 预算与成�
   .map(name=>entry(platformModule(name)));
 const platformSettings = [["系统管理","system","settings"],["Telegram 机器人","telegram","send"]];
 const tenantNav = [["我的 App","myapps","app"],["多 App 经营分析","business","chart"],["人员与权限","staff","people"]];
-const appCommon = [["运营总览","app","grid"],["用户与售后","users","people"],["交易订单","orders","card"],["生成任务","tasks","ai"]];
-const appOperator = [["前台内容运营",appModule("前台内容运营").id,"layers"],["素材与模板","templates","layers"],["功能与发布","features","spark"]];
+const appCommon = [["经营概览","app","grid"]];
+const appEntry = (name,label=name) => [label,routeFor(appModule(name))];
 const appGroups = [
-  ["创作与互动","ai",["图片创作","视频创作","人像工具","角色管理","角色聊天","剧集与剧情","直播互动"]],
-  ["商品与增长","chart",["商品管理","福利与活动","投放计划","流量分发（草案）","渠道与推客（草案）","营销短链与落地页（草案）","App 归因运营（草案）","消息运营"]],
-  ["分析与治理","audit",["单 App 经营分析","运营诊断","平台协作"]],
+  ["内容运营","layers",[
+    ["素材库","materials"],["模板库","templates"],appEntry("前台内容运营","轮播与营销位"),
+    appEntry("角色管理","角色与聊天"),appEntry("图片创作"),appEntry("视频创作"),appEntry("人像工具"),
+    appEntry("剧集与剧情"),appEntry("直播互动"),
+  ]],
+  ["投放与增长","chart",[
+    appEntry("流量分发（草案）","内容投放范围"),["功能开关与开放范围","features"],
+    appEntry("App 归因运营（草案）","来源归因"),appEntry("投放计划"),appEntry("消息运营","端内通知"),
+    appEntry("渠道与推客（草案）"),appEntry("营销短链与落地页（草案）"),
+  ]],
+  ["商业化","card",[["付费墙与套餐","products"],["订单与支付记录","orders"],appEntry("福利与活动")]],
+  ["用户运营","people",[["用户","users"],["在线客服","support"],["投诉建议与举报","reports"]]],
+  ["AI 运营","ai",[["AI 消耗规则","aiPricing"],["生成任务","tasks"]]],
+  ["数据分析","chart",[appEntry("单 App 经营分析")]],
+  ["运营诊断","audit",[appEntry("运营诊断","诊断日志")]],
 ];
 function appRoute(target=route) {
-  return target==="app" || visibleCatalog[2].modules.some(module=>routeFor(module)===target);
+  return target==="app" || Object.hasOwn(appRoutePermissions,target) || visibleCatalog[2].modules.some(module=>routeFor(module)===target);
 }
-function primaryAppEntries() {
-  const [overviewEntry,...serviceEntries]=appCommon;
-  return [overviewEntry,...(canOperate()?appOperator:[]),...serviceEntries,["内容举报","reports","shield"]];
+function appGroupsForRole() {
+  if(role!=="support") return appGroups;
+  const order=["用户运营","商业化","AI 运营","运营诊断"];
+  return [...appGroups].sort(([a],[b])=>(order.indexOf(a)+1||5)-(order.indexOf(b)+1||5));
 }
 function renderChrome() {
   const activeApp = currentApp();
@@ -263,13 +327,14 @@ function renderChrome() {
     <div class="brand"><span class="brand-logo">${icon("spark",22)}</span><span>AI SaaS <small>统一运营后台</small></span></div>
     <button class="context" data-action="workspace">${tile(inApp?"app":"layers")}<span><b>${esc(scope)}</b><small>${scopeSub}</small></span>${icon("swap",15)}</button>
     <nav class="nav">
-      ${inApp ? navGroup("App 运营",primaryAppEntries())+
-        appGroups.map(([title,symbol,names])=>navDetails(title,symbol,names.map(name=>entry(appModule(name))))).join("") :
+      ${inApp ? navGroup("App 运营",appCommon)+
+        appGroupsForRole().map(([title,symbol,entries])=>navDetails(title,symbol,entries)).join("") :
         isPlatform() ? navGroup("平台管理",platformMain)+
-          navDetails("公共资源与服务","layers",platformResources)+navGroup("平台设置",platformSettings) :
+          navDetails("公共资源与服务","layers",platformResources)+
+          navGroup("平台分析",[entry(platformModule("平台经营分析"))])+navGroup("平台设置",platformSettings) :
           navGroup("租户工作台",tenantNav)+navDetails("组织与消息","layers",visibleCatalog[1].modules.filter(m=>!aliases[m.name]).map(entry))}
     </nav>
-    <div class="sidebar-foot"><span class="dot"></span>演示环境 <span style="margin-left:auto">v0.45</span></div>`;
+    <div class="sidebar-foot"><span class="dot"></span>演示环境 <span style="margin-left:auto">v0.46</span></div>`;
   document.querySelector("#topbar").innerHTML = `
     <div class="crumb">${btn("","mobile","","icon mobile-menu","menu").replace('data-action="mobile"','aria-label="菜单" data-action="mobile"')}<button class="btn nav-back" data-action="back" ${navigationIndex===0?"disabled":""}>${icon("back",16)}返回上一页</button><span class="root-crumb" title="${esc(inApp?`${tenantName(activeApp)} · ${scope}`:scope)}">${esc(inApp?`${tenantName(activeApp)} / ${scope}`:scope)}</span><span class="root-chevron">${icon("chevron",13)}</span><strong>${esc(labels[route] || moduleById[route]?.name)}</strong></div>
     <div class="top-actions">
@@ -301,8 +366,8 @@ function pendingWork(apps) {
     ["内容举报",db.reports,"待处理","reports","shield","teal","待处置"],
   ];
   for(const [title,records,status,target,symbol,color,label] of types) {
-    if(!allowedRoute(target)||(target==="reports"&&!isPlatform())) continue;
     for(const app of apps) {
+      if(!allowedRoute(target,app)||(target==="reports"&&!isPlatform())) continue;
       const count=records.filter(record=>record.app===app.id&&record.status===status).length;
       if(count) work.push({title,detail:`${app.name} · ${count} 条`,app:app.id,target,symbol,color,label,status});
     }
@@ -374,6 +439,10 @@ function appsPage() {
   return page(onlyMine?"我的 App":"App 管理",onlyMine?"选择有权管理的 App 进入运营工作区。":"创建 App 或登记现有产品，核对归属与交付。",onlyMine?"":btn("创建 / 登记 App","newApp","","primary","plus"))+
     card(cardHead("业务 App",`${apps.length} 个 App`)+appTable(apps,!onlyMine));
 }
+function permissionChecks(name, options, selected, ceiling=Object.keys(permissions)) {
+  return `<div class="checks permission-options">${Object.entries(options).filter(([key])=>ceiling.includes(key))
+    .map(([key,label])=>check(name,key,label,selected.includes(key))).join("")}</div>`;
+}
 function initializePage() {
   const app=currentApp();
   const fallback = app.type==="现有 App 接入" ?
@@ -386,9 +455,17 @@ function initializePage() {
     <form data-form="step">
     ${stepFields[step].map((label,i)=>field(label,`f${i}`,app.fields[step]?.[i]??fallback[step][i],"text","required")).join("")}
     ${step===2?`<div class="checks">${appModules.map((m,i)=>tenantFor(app).allowed.includes(i)?check("ready",i,`${m}依赖已核对`,app.ready.includes(i)):"").join("")}</div>`:""}
-    ${step===5?`<div class="inline-note">保存各步骤检查结果后可交付。交付后由租户决定已准备功能的开放时间。</div>`:""}
+    ${step===5?`<div class="inline-note">${deliveryBlockers(app).map(esc).join("。")||"六步核对及已启用功能准备就绪。交付后由租户决定功能的开放时间。"}</div>`:""}
     <div class="actions"><button class="btn primary" type="submit">保存并标记已核对</button>${step===5?btn("确认交付","deliver",app.id,"", "check").replace("<button ","<button type=\"button\" "):""}</div></form>
     </section></div>`;
+}
+function deliveryBlockers(app) {
+  const unchecked = steps.filter((_,index)=>!app.done.includes(index));
+  const unready = app.enabled.filter(index=>!featureState(app,index).granted || !app.ready.includes(index));
+  return [
+    ...(unchecked.length?[`待核对：${unchecked.join("、")}`]:[]),
+    ...(unready.length?[`待准备功能：${unready.map(index=>appModules[index]).join("、")}`]:[]),
+  ];
 }
 function featureState(app,i) {
   const granted = tenantFor(app).allowed.includes(i);
@@ -399,14 +476,14 @@ function featureState(app,i) {
 }
 function featuresPage() {
   const app = currentApp();
-  return page("功能与发布",`${app.name} · 查看授权、依赖、启用和用户侧生效状态。`,btn("预览用户侧","previewFeatures","","","app")+btn("发布启用配置","publish","","primary","arrow"))+
+  return page(labels.features,`${app.name} · 查看授权、依赖、启用和用户侧生效状态。`,btn("预览用户侧","previewFeatures","","","app")+btn("发布启用配置","publish","","primary","arrow"))+
   (!isDelivered(app)?`<div class="inline-note">当前 App 尚未交付。已有线上功能继续显示，新增配置在交付后发布。</div>`:"")+
   card(cardHead("业务功能", "独立工具关闭只影响自身入口，已启用业务可继续使用已配置的内部依赖。")+table(
     ["功能模块","租户授权","依赖准备","App 启用","用户侧生效"],
     appModules.map((label,i)=>{
       const s=featureState(app,i);
       return [esc(label),badge(s.granted?"已授权":"未授权",s.granted?"good":"gray"),badge(s.ready?"已就绪":"待平台准备",s.ready?"good":"warn"),
-        `<button class="switch" aria-label="启用${esc(label)}" role="switch" aria-checked="${s.enabled}" ${!s.granted||!s.ready||!canOperate()?"disabled":""} data-action="toggleFeature" data-value="${i}"></button>`,
+        `<button class="switch" aria-label="启用${esc(label)}" role="switch" aria-checked="${s.enabled}" ${!s.granted||!s.ready||!hasPermission("features")?"disabled":""} data-action="toggleFeature" data-value="${i}"></button>`,
         badge(s.live?"已生效":"未生效",s.live?"good":"gray")];
     })
   ));
@@ -415,9 +492,10 @@ function staffPage() {
   const list=accessibleApps();
   if(tenantId!=="t1") return page("人员与权限","按 App 管理员工和操作权限。")+card('<div class="empty">当前租户暂无演示员工</div>');
   return page("人员与权限","同一员工可以在不同 App 拥有不同角色和操作范围。")+
-    card(cardHead("员工账号")+table(["员工","已分配 App 和权限","操作"],Object.entries(db.grants).map(([id,grants])=>[
+    card(cardHead("员工账号")+table(["员工","已分配 App 和权限","操作"],Object.keys(db.grants).map(id=>[
       `<span class="table-name">${tile("people")}${accounts[id]}</span>`,
-      Object.entries(grants).filter(([key])=>list.some(a=>a.id===key)).map(([key,grant])=>`${esc(db.apps.find(a=>a.id===key).name)} · ${esc(grant)}`).join("　")||"尚未分配",
+      list.map(app=>[app,assignedPermissions(id,app.id).filter(key=>permissionCeiling(app).includes(key))])
+        .filter(([,keys])=>keys.length).map(([app,keys])=>`${esc(app.name)} · ${keys.length} 项`).join("　")||"尚未分配",
       btn("编辑权限","editStaff",id,"ghost"),
     ])));
 }
@@ -430,7 +508,7 @@ function businessPage() {
 function appPage() {
   const app=currentApp();
   const active=appModules.filter((m,i)=>featureState(app,i).live);
-  return page("运营总览",`${app.name} · ${app.market}`,appStatus(app))+
+  return page("经营概览",`${app.name} · ${app.market}`,appStatus(app))+
     `<div class="overview-grid">
       ${card(cardHead("当前 App 待办")+workQueue(pendingWork([app])))}
       ${card(cardHead("已对用户开放的功能")+`<div class="pad actions">${active.length?active.map(name=>badge(name,"good")).join(""):"暂无已上线功能"}</div>`)}
@@ -471,30 +549,49 @@ function directoryPage() {
     </div><div id="directory-results">${directoryRows()}</div>`);
 }
 const records = () => ({
-  users:{title:"用户与售后",description:"查询用户权益、订单与任务，处理本 App 的售后。",list:db.users,headers:["用户","用户编号","金币余额","操作"],render:u=>[
+  users:{title:labels.users,description:"查找本 App 用户并查看账号及权益。",list:db.users,headers:["用户","用户编号","金币余额","操作"],render:u=>[
     `<span class="table-name">${tile("people")}${esc(u.name)}</span>`,esc(u.id),u.balance,btn("查看用户","userDetail",u.id,"ghost")]},
   tasks:{title:"生成任务",description:"查看生成进度、实际扣减、交付和故障返还。",list:db.tasks,headers:["任务编号","用户","功能","任务状态","实际扣减","返还","操作"],render:t=>[
     esc(t.id),esc(t.user),esc(t.feature),badge(t.status,t.status==="已交付"?"good":"warn"),t.debit,t.refund,btn("查看任务","taskDetail",t.id,"ghost")]},
-  orders:{title:"交易订单",description:"查看支付状态、原商品快照和权益到账情况。",list:db.orders,headers:["订单编号","用户","商品","原币金额","状态","操作"],render:o=>[
+  orders:{title:labels.orders,description:"查看支付状态、原商品快照和权益到账情况。",list:db.orders,headers:["订单编号","用户","商品","原币金额","状态","操作"],render:o=>[
     esc(o.id),esc(o.user),esc(o.name),esc(o.amount),badge(o.status,o.status==="已到账"?"good":"warn"),btn("查看订单","orderDetail",o.id,"ghost")]},
-  reports:{title:"内容举报",description:"平台处理当前 App 的举报，获授权的租户人员查看进度。",list:db.reports,headers:["举报编号","举报对象","原因","状态","操作"],render:r=>[
+  reports:{title:labels.reports,description:"查看本 App 的内容举报、进度及处置结果。",list:db.reports,headers:["举报编号","举报对象","原因","状态","操作"],render:r=>[
     esc(r.id),esc(r.name),esc(r.reason),badge(r.status,r.status==="已处理"?"good":"warn"),btn("查看举报","reportDetail",r.id,"ghost")]},
-  products:{title:"商品管理",description:"维护当前 App 的商品售价和到账权益，历史订单沿用建单快照。",list:db.products,headers:["商品编号","商品","价格","到账金币","操作"],render:p=>[
+  products:{title:labels.products,description:"维护当前 App 的商品售价和到账权益，历史订单沿用建单快照。",list:db.products,headers:["商品编号","商品","价格","到账金币","操作"],render:p=>[
     esc(p.id),esc(p.name),p.price,p.units,btn("编辑商品","editProduct",p.id,"ghost")]},
 });
 function recordRows(key,query="") {
   const config = records()[key];
-  return table(config.headers,config.list.filter(item=>item.app===appId && Object.values(item).join(" ").toLowerCase().includes(query)).map(config.render));
+  return table(config.headers,filteredRecords(key,query).map(config.render));
+}
+function filteredRecords(key,query) {
+  return records()[key].list.filter(item=>item.app===appId &&
+    [...Object.values(item),key==="users"?userProfile(item).contact:""].join(" ").toLowerCase().includes(query));
 }
 function recordPage(key) {
   const config=records()[key];
-  const actions=key==="products"?btn("创建商品","editProduct","","primary","plus"):"";
+  const actions=key==="products"?btn("创建商品","editProduct","","primary","plus"):
+    key==="users"?btn("导出邮箱","exportEmails"):
+    key==="orders"&&hasPermission("exportOrders")?btn("导出订单明细","exportOrders"):"";
   return page(config.title,`${currentApp().name} · ${config.description}`,actions)+
   card(`<div class="filters"><input aria-label="搜索记录" placeholder="搜索名称、编号或状态" data-filter="${key}" value="${esc(recordQuery)}">${recordQuery?btn("查看全部记录","go",key,"ghost"):""}</div><div id="filtered-${key}">${recordRows(key,recordQuery.toLowerCase())}</div>`);
 }
+function exportCsv(name, rows) {
+  const cell=value=>{
+    const text=String(value??"");
+    const literal=/^[\s]*[=+@-]|^[\t\r\n]/.test(text)?"'"+text:text;
+    return '"'+literal.replaceAll('"','""')+'"';
+  };
+  const download=document.createElement("a");
+  const file=new Blob(["\ufeff",rows.map(row=>row.map(cell).join(",")).join("\r\n")],{type:"text/csv;charset=utf-8"});
+  download.href=URL.createObjectURL(file);
+  download.download=name;
+  download.click();
+  setTimeout(()=>URL.revokeObjectURL(download.href),1000);
+}
 function templatesPage() {
   const app=currentApp();
-  return page("素材与模板",`${app.name} · 管理本 App 自有素材及获准公共模板。`)+
+  return page("模板库",`${app.name} · 管理本 App 获准使用的公共模板。`)+
     card(cardHead("公共模板版本")+table(["模板","来源","当前使用版本","可用版本","操作"],[
       ["Portrait Motion",badge("平台公共模板"),`v${app.template}.0`,"v2.0",app.template===2?badge("已使用最新版","good"):btn("查看并更新","template","","primary","arrow")],
     ]));
@@ -511,7 +608,6 @@ function systemPage() {
         ["平台超级管理员","平台及所有租户与 App",badge("演示账号","good")],
       ]))}
       <div class="grid">
-        ${card(`<div class="module">${tile("grid")}<h2>终端与部署</h2><p>查看客户端交付、站点和环境配置。</p>${btn("查看交付配置","go",platformModule("终端交付配置（批次待定）").id,"ghost","arrow")}</div>`)}
         ${card(`<div class="module">${tile("audit")}<h2>运行与审计</h2><p>按操作者和目标 App 查看操作记录。</p>${btn("查看操作审计","go","audit","ghost","arrow")}</div>`)}
         ${card(`<div class="module">${tile("shield")}<h2>平台安全设置</h2><p>查看身份校验、验签、凭据和运行限制的设计。</p>${btn("查看安全设置","go",safety.id,"ghost","arrow")}</div>`)}
       </div>
@@ -524,12 +620,12 @@ function discoveryGroups() {
   const apps=accessibleApps();
   return domains.map(domain=>{
     const destinations=new Map();
-    const main=domain===app?[...appCommon,...appOperator]:domain===platform?[...platformMain,...platformSettings]:domain===tenant?tenantNav:[];
+    const main=domain===app?[...appCommon,...appGroupsForRole().flatMap(([, ,entries])=>entries)]:domain===platform?[...platformMain,...platformSettings]:domain===tenant?tenantNav:[];
     const available=id=>domain===app?apps.some(candidate=>allowedRoute(id,candidate)):allowedRoute(id);
     for(const [name,id] of main.filter(([,id])=>available(id))) destinations.set(id,{id,name,terms:[]});
     for(const module of domain.modules) {
       if (domain===app ? !apps.some(candidate=>moduleAllowed(module,candidate)) : !moduleAllowed(module)) continue;
-      const id=routeFor(module);
+      const id=["平台运行与审计","平台安全设置"].includes(module.name)?"system":routeFor(module);
       const destination=destinations.get(id)||{id,name:moduleTitle(module),terms:[]};
       destination.terms.push(module.name,...module.items);
       destinations.set(id,destination);
@@ -564,9 +660,15 @@ function render() {
   renderChrome();
   const pages={overview,tenants:tenantsPage,apps:appsPage,myapps:appsPage,initialize:initializePage,
     features:featuresPage,staff:staffPage,business:businessPage,app:appPage,templates:templatesPage,audit:auditPage,
+    materials:()=>pendingPage("materials","图片、视频及 App 自有素材"),
+    support:()=>pendingPage("support","本 App 的用户咨询会话"),
+    aiPricing:()=>pendingPage("aiPricing","本 App 各模型规格的用户消耗"),
     directory:directoryPage,system:systemPage,telegram:()=>modulePage(platformModule("经营机器人管理（草案）"),"编辑演示推送计划，查看接收权限、查询指令和告警配置范围。")};
   root.innerHTML=pages[route]?pages[route]():records()[route]?recordPage(route):modulePage(moduleById[route]);
   drawChart();
+}
+function pendingPage(key, description) {
+  return page(labels[key],`${currentApp().name} · ${description}`)+card('<div class="empty">工作区入口已就绪，页面功能将在后续批次接入。</div>');
 }
 
 function openDialog(title,body) {
@@ -583,7 +685,7 @@ const dialogActions = html => `<div class="actions">${html}</div>`;
 const completed = message => { modal.close(); render(); say(message); };
 const getRecord = (list,id) => inScope(appId) ? list.find(r=>r.app===appId && r.id===id) : undefined;
 function showUser(id,section="profile") {
-  if(!canSupport()) return;
+  if(!hasPermission("users")) return;
   const user=getRecord(db.users,id);
   if(!user) return;
   const profile=userProfile(user);
@@ -600,10 +702,12 @@ function showUser(id,section="profile") {
     tasks:table(["任务编号","状态","返还金币","操作"],ownRecords(db.tasks).map(t=>[
       esc(t.id),esc(t.status),t.refund,btn("查看任务","taskDetail",t.id,"ghost")])),
   };
-  const controls=[["profile","基本资料"],["ledger","权益与流水"],["orders","交易订单"],["tasks","生成任务"]];
+  const controls=[["profile","基本资料"],["ledger","权益与流水"],
+    ...[["orders","交易订单"],["tasks","生成任务"]].filter(([key])=>hasPermission(key))];
+  if(!controls.some(([key])=>key===section)) return;
   openDialog(`用户详情 · ${user.name}`,`<div class="segmented detail-tabs" aria-label="用户详情分类">${controls.map(([key,label])=>
     `<button data-action="userSection" data-value="${esc(id)}:${key}" class="${section===key?"selected":""}" aria-pressed="${section===key}">${label}</button>`).join("")}</div>`+
-    sections[section]+dialogActions(btn("补发金币","compensate",id,"primary","plus")));
+    sections[section]+(hasPermission("compensate")?dialogActions(btn("补发金币","compensate",id,"primary","plus")):""));
 }
 function moduleSearch(query="") {
   const needle=query.trim().toLowerCase();
@@ -613,7 +717,6 @@ function moduleSearch(query="") {
   })).join("");
   return results||`<div class="empty">没有找到匹配模块</div>`;
 }
-const grantChoices = ["无权限","运营与发布","仅查订单","查询与补发"];
 const handlers = {
   back:()=>{if(navigationIndex>0) history.back();},
   go: target=>{ modal.close(); go(target); },
@@ -621,7 +724,7 @@ const handlers = {
   initApp: id=>{ if(isPlatform()) selectApp(id,"initialize"); },
   openWork:value=>{
     const [id,target,status=""]=value.split(":");
-    if(allowedRoute(target)) selectApp(id,target,status);
+    selectApp(id,target,status);
   },
   close:()=>modal.close(),
   mobile:()=>{menuOpen=!menuOpen; document.body.classList.toggle("menu-open",menuOpen);},
@@ -666,7 +769,19 @@ const handlers = {
     if(!isPlatform()) return;
     const t=db.tenants.find(t=>t.id===id);
     if(!t) return;
-    openDialog("租户详情",facts([["租户名称",t.name],["最高管理员",t.owner],["获授功能",t.allowed.map(i=>appModules[i]).join("、")],["关联 App",db.apps.filter(a=>a.tenant===id).map(a=>a.name).join("、")],["状态",t.active?"启用":"停用"]])+dialogActions(btn("设置授权","grantTenant",id,"primary")));
+    const apps=db.apps.filter(a=>a.tenant===id);
+    openDialog("租户详情",facts([["租户名称",t.name],["最高管理员",t.owner],["获授功能",t.allowed.map(i=>appModules[i]).join("、")],["状态",t.active?"启用":"停用"]])+
+      table(["关联 App","授权上限","操作"],apps.map(a=>[esc(a.name),`${permissionCeiling(a).length} 项`,btn("设置 App 授权上限","grantApp",a.id,"ghost")]))+
+      dialogActions(btn("设置租户功能","grantTenant",id,"primary")));
+  },
+  grantApp:id=>{
+    const app=db.apps.find(item=>item.id===id);
+    if(!isPlatform()||!app) return;
+    const assigned=permissionCeiling(app);
+    openForm(`App 授权上限 · ${app.name}`,"grantApp",
+      '<p class="inline-note">收回的权限立即失效。重新开放时，仍持有该项授权的员工会自动恢复。</p>'+
+      '<h3>日常业务</h3>'+permissionChecks("ceiling",businessPermissions,assigned)+
+      '<h3>独立授权</h3>'+permissionChecks("ceiling",exceptionPermissions,assigned),"保存 App 授权",id);
   },
   grantTenant:id=>{
     if(!isPlatform()) return;
@@ -682,16 +797,27 @@ const handlers = {
       select("初始化路径","type",[option("新建 App","新建 App"),option("现有 App 接入","现有 App 接入")])+
       field("市场或终端","market","演练环境","text","required maxlength=40"),"创建并初始化");
   },
+  appDetail:id=>{
+    const app=db.apps.find(item=>item.id===id);
+    if(!isPlatform()||!app) return;
+    openDialog(`App 详情 · ${app.name}`,facts([
+      ["所属租户",tenantName(app)],["市场或终端",app.market],["初始化路径",app.type],["交付状态",app.status],
+      ["已核对",`${app.done.length} / ${steps.length}`],
+    ])+dialogActions(btn("终端交付配置","go",platformModule("终端交付配置（批次待定）").id,"ghost")+
+      btn("查看产品初始化","viewInitialization",id,"primary")));
+  },
+  viewInitialization:id=>{ if(isPlatform()) {modal.close();selectApp(id,"initialize");} },
   deliver:id=>{
     const app=currentApp();
     if(!isPlatform()||app.id!==id) return;
-    if(app.done.length!==steps.length) {say("请先保存六个步骤的核对结果");return;}
+    const blockers=deliveryBlockers(app);
+    if(blockers.length) {say(blockers.join("。"));return;}
     if(isDelivered(app)) {say("该 App 已交付");return;}
     app.status="已交付"; log("确认初始化交付");
     render(); say(`${app.name} 已交付租户`);
   },
   toggleFeature:value=>{
-    if(!inScope(appId)||!canOperate()) return;
+    if(!hasPermission("features")) return;
     const app=currentApp(),i=Number(value),s=featureState(app,i);
     if(!s.granted||!s.ready) return;
     app.enabled=s.enabled?app.enabled.filter(x=>x!==i):[...app.enabled,i];
@@ -705,17 +831,28 @@ const handlers = {
   },
   publish:()=>{
     const app=currentApp();
-    if(!inScope(appId)||!canOperate()) return;
+    if(!hasPermission("features")) return;
     if(!isDelivered(app)) {say("交付完成后可发布启用配置");return;}
     openForm("发布启用配置","publish",`<p>发布后应用当前启用项。关闭独立工具只影响对应入口与独立请求。</p>`,"确认发布");
   },
   editStaff:id=>{
     if(!["platform","owner"].includes(role)||!db.grants[id]) return;
     const list=accessibleApps().filter(a=>a.tenant==="t1");
-    openForm(`员工授权 · ${accounts[id]}`,"staff",list.map(a=>select(a.name,`grant-${a.id}`,grantChoices.map(choice=>option(choice,choice,choice===(db.grants[id][a.id]||grantChoices[0]))))).join(""),"保存权限",id);
+    openForm(`员工授权 · ${accounts[id]}`,"staff",
+      '<p>展开 App，勾选员工需要的业务功能。独立操作权限在下方单独分配。</p>'+
+      (list.map((a,index)=>{
+        const selected=assignedPermissions(id,a.id);
+        const ceiling=permissionCeiling(a);
+        const name=`grant-${a.id}`;
+        const suspended=selected.filter(key=>!ceiling.includes(key));
+        return `<details class="permission-app" ${index===0?"open":""}><summary>${esc(a.name)}</summary>
+          <h3>日常业务</h3>${permissionChecks(name,businessPermissions,selected,ceiling)}
+          <h3>独立授权</h3>${permissionChecks(name,exceptionPermissions,selected,ceiling)}
+          ${suspended.length?'<h3>平台暂停的权限</h3><p>取消勾选可撤销员工原有授权。</p>'+permissionChecks(name,permissions,selected,suspended):""}</details>`;
+      }).join("")||'<p class="inline-note">暂无可授权的 App。</p>'),"保存权限",id);
   },
   template:()=>{
-    if(!inScope(appId)||!canOperate()||currentApp().template===2) return;
+    if(!hasPermission("templates")||currentApp().template===2) return;
     openForm("更新公共模板","template",facts([["模板","Portrait Motion"],["当前版本","v1.0"],["目标版本","v2.0"],["版本变更","更新封面示例和说明文案"],["生效范围",currentApp().name]]),"更新到 v2.0");
   },
   resetDirectory:()=>{
@@ -731,12 +868,26 @@ const handlers = {
     showUser(id);
   },
   userDetail:id=>showUser(id),
+  exportEmails:()=>{
+    if(route!=="users"||!hasPermission("users")) return;
+    const users=filteredRecords("users",recordQuery.trim().toLowerCase()).filter(user=>userProfile(user).contact);
+    if(!users.length) {say("当前筛选范围没有邮箱记录");return;}
+    exportCsv("用户邮箱.csv",[["用户编号","邮箱"],...users.map(user=>[user.id,userProfile(user).contact])]);
+    log(`导出 ${users.length} 条用户邮箱`);
+  },
+  exportOrders:()=>{
+    if(route!=="orders"||!hasPermission("orders")||!hasPermission("exportOrders")) return;
+    const orders=filteredRecords("orders",recordQuery.trim().toLowerCase());
+    if(!orders.length) {say("当前筛选范围没有订单记录");return;}
+    exportCsv("订单明细.csv",[["订单编号","用户编号","商品","原币金额","状态"],...orders.map(o=>[o.id,o.user,o.name,o.amount,o.status])]);
+    log(`导出 ${orders.length} 条订单明细`);
+  },
   userSection:value=>{
     const [id,section]=value.split(":");
     if(["profile","ledger","orders","tasks"].includes(section)) showUser(id,section);
   },
   compensate:id=>{
-    if(!canSupport()||!getRecord(db.users,id)) return;
+    if(!hasPermission("users")||!hasPermission("compensate")||!getRecord(db.users,id)) return;
     openForm("人工补发金币","compensate",field("补发数量","units","","number","required min=1 max=100000 step=1")+
       `<label class="field"><span>补发原因</span><textarea name="reason" required maxlength="120"></textarea></label>`,"确认补发",id);
   },
@@ -748,7 +899,7 @@ const handlers = {
       (isPlatform()&&t.status==="故障待结算"?dialogActions(btn("模拟系统自动返还","refund",t.id,"primary")):""));
   },
   orderDetail:id=>{
-    if(!canReadTransactions()) return;
+    if(!hasPermission("orders")) return;
     const o=getRecord(db.orders,id);
     if(!o) return;
     openDialog(`订单详情 · ${o.id}`,facts([["用户编号",o.user],["下单商品",o.name],["原币金额",o.amount],["原到账金币",o.units],["状态",o.status]])+
@@ -766,7 +917,7 @@ const handlers = {
     openForm("记录举报处置","report",`<label class="field"><span>处置结果与原因</span><textarea name="result" required maxlength="160"></textarea></label>`,"提交处置",id);
   },
   editProduct:id=>{
-    if(!inScope(appId)||!canOperate()) return;
+    if(!hasPermission("products")) return;
     const p=getRecord(db.products,id);
     openForm(p?"编辑商品":"创建商品","product",field("商品名称","name",p?.name,"text","required maxlength=40")+
       field("售价（演示币种 INR）","price",p?.price,"number","required min=0 max=1000000 step=.01")+
@@ -819,6 +970,13 @@ const forms = {
     }
     log(`更新租户授权 ${t.name}`,""); completed("授权已更新");
   },
+  grantApp:(data,id)=>{
+    const app=db.apps.find(item=>item.id===id);
+    if(!isPlatform()||!app) return;
+    app.businessCeiling=Object.keys(permissions).filter(key=>data.getAll("ceiling").includes(key));
+    log(`更新 App 授权上限 · ${app.name}`,id);
+    completed("App 授权上限已更新");
+  },
   app:data=>{
     if(!isPlatform()) return;
     const name=data.get("name").trim(),market=data.get("market").trim(),tenant=data.get("tenant");
@@ -840,26 +998,26 @@ const forms = {
   },
   publish:()=>{
     const app=currentApp();
-    if(!inScope(appId)||!canOperate()||!isDelivered(app)) return;
+    if(!hasPermission("features")||!isDelivered(app)) return;
     app.live=app.enabled.filter(i=>featureState(app,i).granted&&featureState(app,i).ready);
     log("发布 App 功能配置"); completed("用户侧功能已更新");
   },
   staff:(data,id)=>{
     if(!["platform","owner"].includes(role)||!db.grants[id]) return;
     accessibleApps().filter(a=>a.tenant==="t1").forEach(a=>{
-      const grant=data.get(`grant-${a.id}`);
-      if(grant===grantChoices[0]) delete db.grants[id][a.id];
-      else if(grantChoices.includes(grant)) db.grants[id][a.id]=grant;
+      const ceiling=permissionCeiling(a);
+      const previous=assignedPermissions(id,a.id);
+      db.grants[id][a.id]=data.getAll(`grant-${a.id}`).filter(key=>ceiling.includes(key)||previous.includes(key));
     });
     log(`更新 ${accounts[id]} 的 App 权限`,""); completed("员工权限已保存");
   },
   template:()=>{
-    if(!inScope(appId)||!canOperate()) return;
+    if(!hasPermission("templates")) return;
     currentApp().template=2; log("主动更新公共模板到 v2.0"); completed("当前 App 已更新到 v2.0");
   },
   compensate:(data,id)=>{
     const u=getRecord(db.users,id),units=Number(data.get("units")),reason=data.get("reason").trim();
-    if(!u||!canSupport()) return;
+    if(!u||!hasPermission("users")||!hasPermission("compensate")) return;
     if(!Number.isInteger(units)||units<1||!reason) return "请填写有效数量和补发原因";
     u.balance+=units; db.ledger.unshift({user:id,app:appId,kind:"人工补发",units,reason});
     log(`为 ${id} 补发 ${units} 金币`);
@@ -873,7 +1031,7 @@ const forms = {
     r.status="已处理"; r.result=result; log(`处置举报 ${id}`); completed("举报处理结果已记录");
   },
   product:(data,id)=>{
-    if(!inScope(appId)||!canOperate()) return;
+    if(!hasPermission("products")) return;
     const name=data.get("name").trim(),price=Number(data.get("price")),units=Number(data.get("units"));
     if(!name||!Number.isFinite(price)||price<0||!Number.isInteger(units)||units<0) return "请填写有效商品信息";
     const old=getRecord(db.products,id);
@@ -931,18 +1089,33 @@ function updateDirectoryFilter(target) {
 }
 document.addEventListener("input",event=>{
   if(event.target.id==="search-module") document.querySelector("#search-results").innerHTML=moduleSearch(event.target.value);
-  if(event.target.matches("input")) updateDirectoryFilter(event.target);
-  updateFilter(event.target);
+  if(event.target.matches("input")) {
+    updateDirectoryFilter(event.target);
+    updateFilter(event.target);
+  }
 });
 document.addEventListener("change",event=>{
   if(event.target.dataset.change==="init-app") selectApp(event.target.value,"initialize");
-  if(event.target.matches("select")) updateDirectoryFilter(event.target);
-  updateFilter(event.target);
+  if(event.target.matches("select")) {
+    updateDirectoryFilter(event.target);
+    updateFilter(event.target);
+  }
 });
 document.addEventListener("keydown",event=>{
   if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==="k") {event.preventDefault();handlers.search();}
 });
 window.addEventListener("resize",drawChart);
+window.addEventListener("storage",event=>{
+  if(event.key!==stateKey && event.key!==null) return;
+  db=loadDemoData(event.newValue);
+  modal.close();
+  if(!allowedRoute(route)) {
+    go(isPlatform()?"overview":"myapps");
+    say("权限已更新，请从可用页面继续");
+    return;
+  }
+  render();
+});
 window.addEventListener("popstate",event=>{
   modal.close();
   if (!restoreNavigation(event.state)) {
