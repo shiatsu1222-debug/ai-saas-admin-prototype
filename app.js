@@ -143,14 +143,14 @@ function say(message) {
   toastTimer = setTimeout(() => toast.classList.remove("show"), 2600);
 }
 const labels = {
-  overview:"平台总览",tenants:"租户管理",apps:"App 管理",initialize:"产品初始化",
+  overview:"平台总览",tenants:"租户管理",apps:"产品管理",initialize:"产品初始化",
   myapps:"我的 App",staff:"人员与权限",business:"多 App 经营分析",app:"经营概览",features:"功能开关与开放范围",
   users:"用户",tasks:"生成任务",orders:"订单与支付记录",reports:"投诉建议与举报",products:"付费墙与套餐",templates:"模板库",
   materials:"素材库",support:"在线客服",aiPricing:"AI 消耗规则",
   directory:"用户管理",system:"系统管理",telegram:"Telegram 机器人",audit:"操作审计",
 };
 const aliases = {
-  "租户管理":"tenants","功能授权":"tenants","App 管理":"apps","产品初始化":"initialize","平台运行与审计":"audit",
+  "租户管理":"tenants","功能授权":"tenants","产品管理":"apps","产品初始化":"initialize","平台运行与审计":"audit",
   "我的 App":"myapps","人员与权限":"staff","多 App 经营分析":"business","功能配置与发布":"features",
   "素材与创作模板":"templates","用户管理":"users","用户权益":"users","客服与反馈":"support","商品管理":"products",
   "生成任务":"tasks","交易订单":"orders","内容举报":"reports","经营机器人管理（草案）":"telegram",
@@ -268,17 +268,22 @@ const card = html => `<section class="card">${html}</section>`;
 const cardHead = (title, subtitle = "", action = "") => `<div class="card-head"><div><h2>${esc(title)}</h2>${subtitle ? `<p>${esc(subtitle)}</p>` : ""}</div>${action}</div>`;
 const appName = app => `<span class="table-name"><span class="tile ${app.color}">${esc(app.letter)}</span><span>${esc(app.name)}<small>${esc(app.market)}</small></span></span>`;
 const appStatus = app => badge(app.status,app.status === "已交付" ? "good" : app.status === "待接入" ? "gray" : "warn");
-function appTable(list, full = false) {
-  const headers = ["业务 App","所属租户","交付状态","已生效功能","操作"];
-  return table(headers, list.map(app => [
-    appName(app),esc(tenantName(app)),appStatus(app),`${app.live.length} 项`,
-    `<div class="actions">${isPlatform()&&full?btn("App 详情","appDetail",app.id,"ghost"):""}${isPlatform()&&full&&!isDelivered(app)?btn("继续初始化","initApp",app.id,"ghost"):btn("进入工作区","openApp",app.id,"ghost")}</div>`,
-  ]));
+const productPaths = {"新建 App":"新建产品","现有 App 接入":"接入现有产品"};
+const productSubpage = () => route==="initialize" || route===platformModule("终端交付配置（批次待定）").id;
+function appTable(list, productView = false) {
+  const headers = [productView?"产品与终端":"业务 App","所属租户","交付状态","已生效功能","操作"];
+  return table(headers, list.map(app => {
+    const detail=productView?btn("产品详情","appDetail",app.id,"ghost"):"";
+    const action=productView&&!isDelivered(app)
+      ? btn(app.done.length?"继续初始化":"开始初始化","initApp",app.id,"ghost")
+      : btn("进入工作区","openApp",app.id,"ghost");
+    return [appName(app),esc(tenantName(app)),appStatus(app),`${app.live.length} 项`,`<div class="actions">${detail}${action}</div>`];
+  }));
 }
 function navButton(label,target,symbol = "") {
   const active=route===target;
   const parent=(target==="system" && ["audit",platformModule("平台安全设置").id].includes(route)) ||
-    (target==="apps" && route===platformModule("终端交付配置（批次待定）").id);
+    (target==="apps" && productSubpage());
   return `<button class="${active||parent?"active":""}" ${active?'aria-current="page"':parent?'aria-current="location"':""} data-action="go" data-value="${target}">${symbol?icon(symbol):""}${esc(label)}</button>`;
 }
 function navGroup(title, entries) {
@@ -293,8 +298,8 @@ function navDetails(title,symbol,entries) {
 }
 const entry = module => [moduleTitle(module),routeFor(module)];
 const platformMain = [
-  ["平台总览","overview","grid"],["租户管理","tenants","people"],["App 管理","apps","app"],
-  ["产品初始化","initialize","spark"],["用户管理","directory","people"],
+  ["平台总览","overview","grid"],["租户管理","tenants","people"],[labels.apps,"apps","app"],
+  ["用户管理","directory","people"],
 ];
 const platformResources = ["平台公共资源","模型管理","AI 预算与成本","支付管理","归因配置","资源配额（草案）"]
   .map(name=>entry(platformModule(name)));
@@ -331,7 +336,8 @@ function renderChrome() {
   const activeApp = currentApp();
   const inApp = appRoute();
   const scope = inApp ? activeApp?.name : isPlatform() ? "平台总后台" : currentTenant()?.name;
-  const scopeSub = inApp ? "App 运营工作区" : isPlatform() ? "全部租户与 App" : "租户工作台";
+  const scopeSub = inApp ? "App 运营工作区" : isPlatform() ? "全部租户与产品" : "租户工作台";
+  const productCrumb=productSubpage()?btn(labels.apps,"go","apps","ghost")+icon("chevron",13):"";
   document.body.classList.toggle("menu-open",menuOpen);
   document.querySelector("#sidebar").innerHTML = `
     <div class="brand"><span class="brand-logo">${icon("spark",22)}</span><span>AI SaaS <small>统一运营后台</small></span></div>
@@ -344,9 +350,9 @@ function renderChrome() {
           navGroup("平台分析",[entry(platformModule("平台经营分析"))])+navGroup("平台设置",platformSettings) :
           navGroup("租户工作台",tenantNav)+navDetails("组织与消息","layers",visibleCatalog[1].modules.filter(m=>!aliases[m.name]).map(entry))}
     </nav>
-    <div class="sidebar-foot"><span class="dot"></span>演示环境 <span style="margin-left:auto">v0.47</span></div>`;
+    <div class="sidebar-foot"><span class="dot"></span>演示环境 <span style="margin-left:auto">v0.48</span></div>`;
   document.querySelector("#topbar").innerHTML = `
-    <div class="crumb">${btn("","mobile","","icon mobile-menu","menu").replace('data-action="mobile"','aria-label="菜单" data-action="mobile"')}<button class="btn nav-back" data-action="back" ${navigationIndex===0?"disabled":""}>${icon("back",16)}返回上一页</button><span class="root-crumb" title="${esc(inApp?`${tenantName(activeApp)} · ${scope}`:scope)}">${esc(inApp?`${tenantName(activeApp)} / ${scope}`:scope)}</span><span class="root-chevron">${icon("chevron",13)}</span><strong>${esc(labels[route] || moduleById[route]?.name)}</strong></div>
+    <div class="crumb">${btn("","mobile","","icon mobile-menu","menu").replace('data-action="mobile"','aria-label="菜单" data-action="mobile"')}<button class="btn nav-back" data-action="back" ${navigationIndex===0?"disabled":""}>${icon("back",16)}返回上一页</button><span class="root-crumb" title="${esc(inApp?`${tenantName(activeApp)} · ${scope}`:scope)}">${esc(inApp?`${tenantName(activeApp)} / ${scope}`:scope)}</span><span class="root-chevron">${icon("chevron",13)}</span>${productCrumb}<strong>${esc(labels[route] || moduleById[route]?.name)}</strong></div>
     <div class="top-actions">
       <button class="btn search-trigger" data-action="search" aria-label="搜索模块">${icon("search",16)}<span class="search-copy">搜索模块</span><kbd>Ctrl K</kbd></button>
       <button class="profile" data-action="roles" aria-label="切换身份"><span class="avatar">${isPlatform()?"管":role==="support"?"客":"运"}</span><span class="profile-text"><b>${accounts[role]}</b><small>切换身份</small></span>${icon("down",13)}</button>
@@ -356,12 +362,12 @@ function overview() {
   const pending = db.apps.filter(a=>!isDelivered(a)).length;
   const metrics = [
     ["活跃租户",db.tenants.filter(t=>t.active).length,"people","","本月新增 1 个"],
-    ["业务 App",db.apps.length,"app","blue",`${db.apps.filter(isDelivered).length} 个已交付 · ${pending} 个待交付`],
+    ["业务产品",db.apps.length,"app","blue",`${db.apps.filter(isDelivered).length} 个已交付 · ${pending} 个待交付`],
     ["AI 生成任务",range===7?"18,642":range===30?"74,386":"224,870","ai","teal","成功率 96.8%"],
     ["终端支付金额",range===7?"₹126,480":range===30?"₹492,750":"₹1,430,260","card","amber","已排除测试交易"],
   ];
   const work = pendingWork(db.apps);
-  return page("平台总览","查看业务异常、App 交付进度和经营趋势。")+
+  return page("平台总览","查看业务异常、产品交付进度和经营趋势。")+
     `<div class="overview-grid">
       ${card(cardHead("待办事项")+workQueue(work))}
       ${card(cardHead("经营趋势","生成任务与支付订单数量",`<div class="segmented">${[7,30,90].map(n=>`<button data-action="range" data-value="${n}" class="${range===n?"selected":""}" aria-pressed="${range===n}">近 ${n} 天</button>`).join("")}</div>`)+`<div class="chart"><canvas id="chart" aria-label="生成任务和支付订单趋势图"></canvas></div><div class="legend"><span><i></i>生成任务</span><span><i></i>支付订单</span></div>`)}
@@ -446,8 +452,10 @@ function tenantRows(query="",state="") {
 function appsPage() {
   const onlyMine = route === "myapps";
   const apps=accessibleApps();
-  return page(onlyMine?"我的 App":"App 管理",onlyMine?"选择有权管理的 App 进入运营工作区。":"创建 App 或登记现有产品，核对归属与交付。",onlyMine?"":btn("创建 / 登记 App","newApp","","primary","plus"))+
-    card(cardHead("业务 App",`${apps.length} 个 App`)+appTable(apps,!onlyMine));
+  return page(onlyMine?labels.myapps:labels.apps,
+    onlyMine?"选择有权管理的 App 进入运营工作区。":"管理产品、终端和交付，覆盖 H5、Web 和移动客户端。",
+    onlyMine?"":btn("创建 / 登记产品","newApp","","primary","plus"))+
+    card(cardHead(onlyMine?"业务 App":"产品列表",`${apps.length} 个${onlyMine?" App":"产品"}`)+appTable(apps,!onlyMine));
 }
 function permissionChecks(name, options, selected, ceiling=Object.keys(permissions)) {
   return `<div class="checks permission-options">${Object.entries(options).filter(([key])=>ceiling.includes(key))
@@ -458,10 +466,10 @@ function initializePage() {
   const fallback = app.type==="现有 App 接入" ?
     [[app.name,app.market,"沿用现有入口"],["现有配置","保留现网导航","盘点发布版本"],["租户授权","按 App 核对模型及功能依赖"],["沿用现网内容","保留商品和消耗规则"],["核对模型绑定","保留在途回调","核对现网存储"],["确认权限和配置版本","账号、订单、权益、任务和作品"]]:
     [[app.name,app.market,"平台维护"],["初始化模板 v1","平台预设导航","建立配置快照"],["租户授权","检查模块内部依赖"],["预置基础素材","配置初始商品和消耗"],["AI 模型绑定","按实际需要接入","按需配置"],["检查可见范围","准备交付快照"]];
-  return page("产品初始化","为新 App 准备运营配置，或为现有 App 建立接入基线。",isDelivered(app)?btn("进入 App 运营","openApp",app.id,"primary","arrow"):"")+
-    `<div class="card pad" style="margin-bottom:14px"><div class="actions">${appName(app)} ${appStatus(app)} ${badge(app.type)} <select aria-label="初始化目标 App" data-change="init-app">${db.apps.map(a=>option(a.name,a.id,a.id===app.id)).join("")}</select></div></div>
+  return page(labels.initialize,"为新产品准备运营配置，或为现有产品建立接入基线。",isDelivered(app)?btn("进入运营工作区","openApp",app.id,"primary","arrow"):"")+
+    `<div class="card pad" style="margin-bottom:14px"><div class="actions">${appName(app)} ${appStatus(app)} ${badge(productPaths[app.type]||app.type)} <select aria-label="初始化目标产品" data-change="init-app">${db.apps.map(a=>option(a.name,a.id,a.id===app.id)).join("")}</select></div></div>
     <div class="flow-layout"><div class="card steps">${steps.map((s,i)=>`<button class="step ${step===i?"selected":""}" aria-current="${step===i?"step":"false"}" data-action="step" data-value="${i}"><span aria-hidden="true">${app.done.includes(i)?icon("check",13):i+1}</span>${s}</button>`).join("")}</div>
-    <section class="card pad"><h2>${steps[step]}</h2><p>${app.type==="现有 App 接入"?"核对现有值，按确认结果记录本次接入基线。":"核对预置内容，按目标 App 保存准备结果。"}</p>
+    <section class="card pad"><h2>${steps[step]}</h2><p>${app.type==="现有 App 接入"?"核对现有值，按确认结果记录本次接入基线。":"核对预置内容，按目标产品保存准备结果。"}</p>
     <form data-form="step">
     ${stepFields[step].map((label,i)=>field(label,`f${i}`,app.fields[step]?.[i]??fallback[step][i],"text","required")).join("")}
     ${step===2?`<div class="checks">${appModules.map((m,i)=>tenantFor(app).allowed.includes(i)?check("ready",i,`${m}依赖已核对`,app.ready.includes(i)):"").join("")}</div>`:""}
@@ -715,6 +723,7 @@ function systemPage() {
 function discoveryGroups() {
   const [platform,tenant,app,endUser,services,delivery]=visibleCatalog;
   const domains=isPlatform()?[platform,app,services,endUser,delivery]:[tenant,app];
+  const searchParents={"产品初始化":"apps","平台运行与审计":"system","平台安全设置":"system"};
   if(appRoute()) domains.unshift(...domains.splice(domains.indexOf(app),1));
   const apps=accessibleApps();
   return domains.map(domain=>{
@@ -724,12 +733,13 @@ function discoveryGroups() {
     for(const [name,id] of main.filter(([,id])=>available(id))) destinations.set(id,{id,name,terms:[]});
     for(const module of domain.modules) {
       if (domain===app ? !apps.some(candidate=>moduleAllowed(module,candidate)) : !moduleAllowed(module)) continue;
-      const id=["平台运行与审计","平台安全设置"].includes(module.name)?"system":routeFor(module);
+      const id=searchParents[module.name]||routeFor(module);
       const destination=destinations.get(id)||{id,name:moduleTitle(module),terms:[]};
       destination.terms.push(module.name,...module.items);
       destinations.set(id,destination);
     }
     if(domain===platform) {
+      destinations.get("apps").terms.push("App 管理","App管理");
       destinations.get("directory").terms.push("终端用户","跨租户查找");
       destinations.get("system").terms.push("平台账号","后台菜单","运行审计","安全设置");
     }
@@ -894,20 +904,20 @@ const handlers = {
   },
   newApp:()=>{
     if(!isPlatform()) return;
-    openForm("创建 / 登记 App","app",
-      field("业务 App 名称","name","","text","required maxlength=35")+
+    openForm("创建 / 登记产品","app",
+      field("产品名称","name","","text","required maxlength=35")+
       select("所属租户","tenant",db.tenants.filter(t=>t.active).map(t=>option(t.name,t.id)))+
-      select("初始化路径","type",[option("新建 App","新建 App"),option("现有 App 接入","现有 App 接入")])+
+      select("初始化路径","type",Object.entries(productPaths).map(([value,label])=>option(label,value)))+
       field("市场或终端","market","演练环境","text","required maxlength=40"),"创建并初始化");
   },
   appDetail:id=>{
     const app=db.apps.find(item=>item.id===id);
     if(!isPlatform()||!app) return;
-    openDialog(`App 详情 · ${app.name}`,facts([
-      ["所属租户",tenantName(app)],["市场或终端",app.market],["初始化路径",app.type],["交付状态",app.status],
+    openDialog(`产品详情 · ${app.name}`,facts([
+      ["所属租户",tenantName(app)],["市场或终端",app.market],["初始化路径",productPaths[app.type]||app.type],["交付状态",app.status],
       ["已核对",`${app.done.length} / ${steps.length}`],
     ])+dialogActions(btn("终端交付配置","go",platformModule("终端交付配置（批次待定）").id,"ghost")+
-      btn("查看产品初始化","viewInitialization",id,"primary")));
+      btn(isDelivered(app)?"查看初始化记录":"产品初始化","viewInitialization",id,"primary")));
   },
   viewInitialization:id=>{ if(isPlatform()) {modal.close();selectApp(id,"initialize");} },
   deliver:id=>{
@@ -1084,10 +1094,10 @@ const forms = {
     if(!isPlatform()) return;
     const name=data.get("name").trim(),market=data.get("market").trim(),tenant=data.get("tenant");
     if(!name||!market||!db.tenants.some(t=>t.id===tenant&&t.active)) return "请填写产品资料并选择租户";
-    if(db.apps.some(a=>a.name===name&&a.tenant===tenant)) return "该租户已存在同名 App";
+    if(db.apps.some(a=>a.name===name&&a.tenant===tenant)) return "该租户已存在同名产品";
     const id=idFor("app");
     db.apps.push({id,tenant,name,letter:name[0],market,color:"",type:data.get("type"),done:[],ready:[],enabled:[],live:[],fields:{},template:1,status:"待准备"});
-    log(`创建 App ${name}`,id); modal.close(); selectApp(id,"initialize"); say("App 已创建，进入产品初始化");
+    log(`创建产品 ${name}`,id); modal.close(); selectApp(id,"initialize"); say("产品已创建，进入产品初始化");
   },
   step:data=>{
     if(!isPlatform()) return;
