@@ -74,6 +74,14 @@ main { max-width:1600px; margin:auto; padding:25px 28px 36px; outline:none }
 .metric strong { font-size:26px; display:block; margin:6px 0 2px; font-variant-numeric:tabular-nums; letter-spacing:-.6px }
 .delta { color:var(--green); font-weight:650; margin-right:6px }
 .overview-grid { display:grid; grid-template-columns:minmax(265px,1fr) minmax(0,1.6fr); gap:15px; margin-bottom:16px }
+.platform-queues { grid-template-columns:repeat(2,minmax(0,1fr)) }
+.platform-queues .queue small + small { margin-top:3px }
+.handover-summary { display:flex; flex-wrap:wrap; gap:5px }
+.initialization-summary { margin-bottom:14px }
+.framework-status { display:flex; flex-wrap:wrap; gap:12px 35px; margin-top:14px; padding-top:11px; border-top:1px solid var(--line) }
+.framework-status small,.framework-status b { display:block }
+.framework-status small { margin-bottom:3px; color:var(--muted) }
+.framework-links { margin-bottom:12px }
 .card-head { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:15px 17px }
 .card-head p { color:var(--muted); font-size:12px; margin-top:3px }
 .segmented { display:flex; align-items:center; gap:2px; padding:3px; background:#f3f1f9; border-radius:8px }
