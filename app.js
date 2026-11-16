@@ -350,7 +350,7 @@ function renderChrome() {
           navGroup("平台分析",[entry(platformModule("平台经营分析"))])+navGroup("平台设置",platformSettings) :
           navGroup("租户工作台",tenantNav)+navDetails("组织与消息","layers",visibleCatalog[1].modules.filter(m=>!aliases[m.name]).map(entry))}
     </nav>
-    <div class="sidebar-foot"><span class="dot"></span>演示环境 <span style="margin-left:auto">v0.50</span></div>`;
+    <div class="sidebar-foot"><span class="dot"></span>演示环境 <span style="margin-left:auto">v0.51</span></div>`;
   document.querySelector("#topbar").innerHTML = `
     <div class="crumb">${btn("","mobile","","icon mobile-menu","menu").replace('data-action="mobile"','aria-label="菜单" data-action="mobile"')}<button class="btn nav-back" data-action="back" ${navigationIndex===0?"disabled":""}>${icon("back",16)}返回上一页</button><span class="root-crumb" title="${esc(inApp?`${tenantName(activeApp)} · ${scope}`:scope)}">${esc(inApp?`${tenantName(activeApp)} / ${scope}`:scope)}</span><span class="root-chevron">${icon("chevron",13)}</span>${productCrumb}<strong>${esc(labels[route] || moduleById[route]?.name)}</strong></div>
     <div class="top-actions">
@@ -518,11 +518,9 @@ function staffPage() {
     ])));
 }
 function businessPage() {
-  return page(labels.business,"按获授产品汇总经营与运行指标。")+
-    card(cardHead("产品对比")+table(["业务产品","用户记录","订单记录","生成记录","操作"],accessibleApps().map(a=>[
-      appName(a),db.users.filter(u=>u.app===a.id).length,db.orders.filter(o=>o.app===a.id).length,db.tasks.filter(t=>t.app===a.id).length,btn("查看产品","openApp",a.id,"ghost"),
-    ])));
+  return businessReport.render(businessProducts());
 }
+const businessProducts = () => accessibleApps().filter(app=>app.tenant===tenantId&&hasPermission("analytics",app));
 const currentAppRecords = rows => rows.filter(row=>row.app===appId);
 const numberFormat = new Intl.NumberFormat("zh-CN");
 const formatNumber = value => numberFormat.format(value);
@@ -846,6 +844,9 @@ function moduleSearch(query="") {
 const handlers = {
   back:()=>{if(navigationIndex>0) history.back();},
   go: target=>{ modal.close(); go(target); },
+  reportMetric:metric=>{ if(route==="business") { businessReport.setMetric(metric); render(); } },
+  reportOrder:()=>{ if(route==="business") { businessReport.reverseSort(); render(); } },
+  reportAll:()=>{ if(route==="business") { businessReport.chooseProducts(null); render(); } },
   analysisView:view=>{
     if (route==="pageAnalytics" || route==="usageRanking") go(route,view);
   },
@@ -886,6 +887,7 @@ const handlers = {
     if(!Object.hasOwn(accounts,id)) return;
     if(!db.tenants.some(t=>t.id===tenant&&t.active)) return;
     role=id; tenantId=tenant; modal.close();
+    businessReport.reset();
     appId=accessibleApps()[0]?.id||"";
     route=isPlatform()?"overview":"myapps";
     step=0; recordQuery=""; navigationIndex=0; navigationContext=Math.random();
@@ -1080,6 +1082,19 @@ const handlers = {
 };
 const idFor = prefix => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,7)}`;
 const forms = {
+  reportProducts:data=>{
+    if(route!=="business") return;
+    const available=businessProducts();
+    const selected=available.filter(product=>data.getAll("product").includes(product.id)).map(product=>product.id);
+    if(!selected.length) return "请选择至少一个产品";
+    businessReport.chooseProducts(selected.length===available.length?null:selected);
+    render();
+  },
+  reportDates:data=>{
+    if(route!=="business") return;
+    if(!businessReport.applyDates(data.get("start"),data.get("end"))) return "请选择有效的开始和结束日期";
+    render();
+  },
   tenant:data=>{
     if(!isPlatform()) return;
     const name=data.get("name").trim(),owner=data.get("owner").trim();
@@ -1225,6 +1240,11 @@ document.addEventListener("input",event=>{
 });
 document.addEventListener("change",event=>{
   if(event.target.dataset.change==="init-app") selectApp(event.target.value,"initialize");
+  if(route==="business") {
+    const changes={"report-period":businessReport.setPeriod,"report-currency":businessReport.setCurrency,"report-sort":businessReport.setSort};
+    const apply=changes[event.target.dataset.change];
+    if(apply) { apply(event.target.value); render(); }
+  }
   if(event.target.matches("select")) {
     updateDirectoryFilter(event.target);
     updateFilter(event.target);
