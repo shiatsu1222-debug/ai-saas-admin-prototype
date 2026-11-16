@@ -66,7 +66,7 @@ const seeded = {
   ],
   grants:{operator:{viora:"运营与发布"},operator2:{studio:"运营与发布"},support:{viora:"查询与补发"}},
   users:[{id:"U-10328",app:"viora",name:"Meera",balance:120},{id:"U-10346",app:"viora",name:"Anika",balance:80},{id:"U-22015",app:"studio",name:"Sora",balance:55},{id:"U-10328",app:"drai",name:"Robin",balance:20}],
-  tasks:[{id:"AI-3854",app:"viora",user:"U-10328",feature:"图片创作",status:"故障待结算",debit:10,refund:0},{id:"AI-3862",app:"viora",user:"U-10346",feature:"人像工具",status:"已交付",debit:15,refund:0}],
+  tasks:[{id:"AI-3854",app:"viora",user:"U-10328",feature:"图片创作",status:"故障待结算",debit:10,refund:0},{id:"AI-3862",app:"viora",user:"U-10346",feature:"人像工具",template:"Portrait Motion",status:"已交付",debit:15,refund:0}],
   orders:[{id:"ORD-8217",app:"viora",user:"U-10328",name:"金币礼包",amount:"₹199",units:100,status:"已支付待到账"},{id:"ORD-8230",app:"viora",user:"U-10346",name:"VIP 会员",amount:"₹499",units:0,status:"已到账"}],
   reports:[{id:"RP-105",app:"viora",name:"模板封面举报",reason:"用户反馈封面素材存在授权疑问",status:"待处理"}],
   products:[{id:"SKU-01",app:"viora",name:"金币礼包",price:199,units:100},{id:"SKU-02",app:"viora",name:"VIP 会员",price:499,units:300}],
@@ -76,7 +76,13 @@ let db = structuredClone(seeded);
 function loadDemoData(snapshot) {
   try {
     const raw=JSON.parse(snapshot);
-    if (raw && Array.isArray(raw.apps) && raw.grants) return raw;
+    if (raw && Array.isArray(raw.apps) && raw.grants) {
+      for (const sample of seeded.tasks.filter(task=>task.template)) {
+        const task=raw.tasks?.find(item=>item.id===sample.id && item.app===sample.app);
+        if (task && !Object.hasOwn(task,"template")) task.template=sample.template;
+      }
+      return raw;
+    }
   } catch {}
   return structuredClone(seeded);
 }
@@ -149,6 +155,8 @@ const aliases = {
   "素材与创作模板":"templates","用户管理":"users","用户权益":"users","客服与反馈":"support","商品管理":"products",
   "生成任务":"tasks","交易订单":"orders","内容举报":"reports","经营机器人管理（草案）":"telegram",
   "平台协作":"features",
+  "经营概览":"app",
+  "页面访问与点击统计":"pageAnalytics","AI 任务与消耗统计":"taskAnalytics","功能与模板排行":"usageRanking",
 };
 const operationalModules = {
   "平台公共资源": {entity:"公共资源",fields:["资源名称","当前版本","授权范围"],sample:["Portrait Motion","v2.0","星海运营团队"]},
@@ -183,9 +191,10 @@ const appModulePermissions = {
   "人像工具":"content","剧集与剧情":"content","直播互动":"content","福利与活动":"rewards",
   "渠道与推客（草案）":"growth","营销短链与落地页（草案）":"growth","投放计划":"growth",
   "流量分发（草案）":"growth","App 归因运营（草案）":"growth","消息运营":"growth",
-  "单 App 经营分析":"analytics","运营诊断":"diagnosis",
+  "运营诊断":"diagnosis",
 };
 const appRoutePermissions = {
+  app:"analytics",pageAnalytics:"analytics",taskAnalytics:"analytics",usageRanking:"analytics",
   features:"features",templates:"templates",materials:"materials",users:"users",reports:"reports",
   support:"support",tasks:"tasks",products:"products",orders:"orders",aiPricing:"aiPricing",
 };
@@ -205,7 +214,6 @@ function allowedRoute(target, app=currentApp()) {
   if (["staff","business"].includes(target)) return role === "owner";
   if (moduleById[target]) return moduleAllowed(moduleById[target],app);
   if (!app || !inScope(app.id)) return false;
-  if (target === "app") return hasPermission("analytics",app);
   if (appRoutePermissions[target]) return hasPermission(appRoutePermissions[target],app);
   return visibleCatalog[2].modules.some(module => routeFor(module) === target && moduleAllowed(module,app));
 }
@@ -218,8 +226,10 @@ function restoreNavigation(state) {
   if (!state || state.navigationContext !== navigationContext ||
       !Number.isInteger(state.navigationIndex)) return false;
   const app = db.apps.find(item => item.id === state.appId);
-  if (!allowedRoute(state.route, app) || (appRoute(state.route) && !inScope(state.appId))) return false;
-  ({route, appId, step, recordQuery, navigationIndex} = state);
+  const target=state.route===appModule("经营概览").id?"app":state.route;
+  if (!allowedRoute(target, app) || (appRoute(target) && !inScope(state.appId))) return false;
+  ({appId, step, recordQuery, navigationIndex} = state);
+  route=target;
   return true;
 }
 function showPage() {
@@ -306,11 +316,11 @@ const appGroups = [
   ["商业化","card",[["付费墙与套餐","products"],["订单与支付记录","orders"],appEntry("福利与活动")]],
   ["用户运营","people",[["用户","users"],["在线客服","support"],["投诉建议与举报","reports"]]],
   ["AI 运营","ai",[["AI 消耗规则","aiPricing"],["生成任务","tasks"]]],
-  ["数据分析","chart",[appEntry("单 App 经营分析")]],
+  ["数据分析","chart",["页面访问与点击统计","AI 任务与消耗统计","功能与模板排行"].map(name=>appEntry(name))],
   ["运营诊断","audit",[appEntry("运营诊断","诊断日志")]],
 ];
 function appRoute(target=route) {
-  return target==="app" || Object.hasOwn(appRoutePermissions,target) || visibleCatalog[2].modules.some(module=>routeFor(module)===target);
+  return Object.hasOwn(appRoutePermissions,target) || visibleCatalog[2].modules.some(module=>routeFor(module)===target);
 }
 function appGroupsForRole() {
   if(role!=="support") return appGroups;
@@ -334,7 +344,7 @@ function renderChrome() {
           navGroup("平台分析",[entry(platformModule("平台经营分析"))])+navGroup("平台设置",platformSettings) :
           navGroup("租户工作台",tenantNav)+navDetails("组织与消息","layers",visibleCatalog[1].modules.filter(m=>!aliases[m.name]).map(entry))}
     </nav>
-    <div class="sidebar-foot"><span class="dot"></span>演示环境 <span style="margin-left:auto">v0.46</span></div>`;
+    <div class="sidebar-foot"><span class="dot"></span>演示环境 <span style="margin-left:auto">v0.47</span></div>`;
   document.querySelector("#topbar").innerHTML = `
     <div class="crumb">${btn("","mobile","","icon mobile-menu","menu").replace('data-action="mobile"','aria-label="菜单" data-action="mobile"')}<button class="btn nav-back" data-action="back" ${navigationIndex===0?"disabled":""}>${icon("back",16)}返回上一页</button><span class="root-crumb" title="${esc(inApp?`${tenantName(activeApp)} · ${scope}`:scope)}">${esc(inApp?`${tenantName(activeApp)} / ${scope}`:scope)}</span><span class="root-chevron">${icon("chevron",13)}</span><strong>${esc(labels[route] || moduleById[route]?.name)}</strong></div>
     <div class="top-actions">
@@ -505,14 +515,103 @@ function businessPage() {
       appName(a),db.users.filter(u=>u.app===a.id).length,db.orders.filter(o=>o.app===a.id).length,db.tasks.filter(t=>t.app===a.id).length,btn("查看 App","openApp",a.id,"ghost"),
     ])));
 }
+const currentAppRecords = rows => rows.filter(row=>row.app===appId);
+const numberFormat = new Intl.NumberFormat("zh-CN");
+const formatNumber = value => numberFormat.format(value);
+function taskStats(tasks) {
+  const completed=tasks.filter(task=>task.status==="已交付").length;
+  const failed=tasks.filter(task=>task.status.startsWith("最终失败")).length;
+  const deducted=tasks.reduce((sum,task)=>sum+task.debit,0);
+  const refunded=tasks.reduce((sum,task)=>sum+task.refund,0);
+  const successRate=completed+failed?formatNumber(Math.round(completed/(completed+failed)*100))+"%":"—";
+  return {completed,failed,deducted,refunded,net:deducted-refunded,successRate};
+}
+function overviewMetrics(metrics) {
+  return `<section class="metrics">${metrics.map(([label,value,symbol,detail])=>
+    `<div class="card metric"><div class="metric-top">${tile(symbol)}${esc(label)}</div><strong>${esc(value)}</strong><small>${esc(detail)}</small></div>`).join("")}</section>`;
+}
 function appPage() {
   const app=currentApp();
   const active=appModules.filter((m,i)=>featureState(app,i).live);
-  return page("经营概览",`${app.name} · ${app.market}`,appStatus(app))+
+  const tasks=currentAppRecords(db.tasks);
+  const orders=currentAppRecords(db.orders);
+  const stats=taskStats(tasks);
+  const drilldown=(target,label)=>allowedRoute(target)?btn(label,"go",target,"ghost","arrow"):"—";
+  return page("经营概览",`${app.name} · ${app.market} · 演示数据`,appStatus(app))+
+    overviewMetrics([
+      ["用户记录",formatNumber(currentAppRecords(db.users).length),"people","当前 App 的演示用户"],
+      ["支付订单",formatNumber(orders.length),"card",`${orders.filter(order=>order.status==="已到账").length} 笔权益已到账`],
+      ["AI 任务",formatNumber(tasks.length),"ai",`${stats.completed} 次已交付`],
+      ["金币净消耗",formatNumber(stats.net),"chart","任务扣减减去返还"],
+    ])+
     `<div class="overview-grid">
       ${card(cardHead("当前 App 待办")+workQueue(pendingWork([app])))}
       ${card(cardHead("已对用户开放的功能")+`<div class="pad actions">${active.length?active.map(name=>badge(name,"good")).join(""):"暂无已上线功能"}</div>`)}
-    </div>`;
+    </div>`+
+    card(cardHead("经营报表")+table(["经营维度","关注指标","明细"],[
+      ["用户增长","新增、活跃与留存","—"],
+      ["内容与模板","内容表现、创作请求、结果、下载与分享",drilldown("usageRanking","查看功能与模板排行")],
+      ["AI 生产","任务量、成功率与用户资产净消耗",drilldown("taskAnalytics","查看 AI 任务与消耗")],
+      ["支付与收入","成交、到账、支付日期、时区与币种",drilldown("orders","查看订单")],
+      ["投放转化","访问、点击、业务漏斗及展示热度",drilldown("pageAnalytics","查看访问与点击")],
+      ["App 运营操作记录","查看业务变更及处理记录",drilldown(routeFor(appModule("运营诊断")),"查看诊断日志")],
+    ]));
+}
+const demoPageEvents = [
+  {app:"viora",page:"Discover",event:"页面浏览",users:28,count:45},
+  {app:"viora",page:"Create",event:"页面浏览",users:19,count:32},
+  {app:"viora",page:"Discover",event:"打开模板",users:15,count:24},
+  {app:"viora",page:"Create",event:"开始创作",users:11,count:17},
+];
+function pageAnalytics() {
+  const events=currentAppRecords(demoPageEvents);
+  const mode=recordQuery==="clicks"?"clicks":"views";
+  const rows=events.filter(event=>(event.event==="页面浏览")===(mode==="views"));
+  const views=[["views","页面浏览"],["clicks","按钮点击"]];
+  const controls=`<div class="segmented" aria-label="统计类型">${views.map(([key,label])=>
+    `<button data-action="analysisView" data-value="${key}" class="${key===mode?"selected":""}" aria-pressed="${key===mode}">${label}</button>`).join("")}</div>`;
+  return page("页面访问与点击统计",`${currentApp().name} · 演示事件`)+
+    card(cardHead("事件统计","",controls)+table(["页面","行为","次数","人数"],rows.map(row=>[
+      esc(row.page),esc(row.event),formatNumber(row.count),formatNumber(row.users),
+    ])));
+}
+function taskAnalytics() {
+  const tasks=currentAppRecords(db.tasks);
+  const stats=taskStats(tasks);
+  const features=[...new Set(tasks.map(task=>task.feature))];
+  return page("AI 任务与消耗统计",`${currentApp().name} · 演示任务`,allowedRoute("tasks")?btn("查看生成任务","go","tasks","ghost","arrow"):"")+
+    overviewMetrics([
+      ["任务总数",formatNumber(tasks.length),"ai","当前 App 的演示任务"],
+      ["成功率",stats.successRate,"chart","已交付／已交付及最终失败"],
+      ["金币扣减",formatNumber(stats.deducted),"card",`已返还 ${formatNumber(stats.refunded)}`],
+      ["金币净消耗",formatNumber(stats.net),"grid","金币扣减减去返还"],
+    ])+
+    card(cardHead("按业务功能汇总")+table(["业务功能","任务数","已交付","最终失败","金币扣减","金币返还","金币净消耗"],features.map(feature=>{
+      const list=tasks.filter(task=>task.feature===feature);
+      const totals=taskStats(list);
+      return [esc(feature),list.length,totals.completed,totals.failed,totals.deducted,totals.refunded,totals.net];
+    })));
+}
+function usageRanking() {
+  const byTemplate=recordQuery==="templates";
+  const key=byTemplate?"template":"feature";
+  const title=byTemplate?"模板排行":"功能排行";
+  const groups=new Map();
+  for (const task of currentAppRecords(db.tasks)) {
+    if (!task[key]) continue;
+    if (!groups.has(task[key])) groups.set(task[key],[]);
+    groups.get(task[key]).push(task);
+  }
+  const rows=[...groups].sort(([,a],[,b])=>b.length-a.length).map(([name,tasks],index)=>{
+    const stats=taskStats(tasks);
+    return [index+1,esc(name),tasks.length,new Set(tasks.map(task=>task.user)).size,stats.successRate,stats.net];
+  });
+  const controls=`<div class="segmented" aria-label="排行类型">
+    <button data-action="analysisView" data-value="features" class="${byTemplate?"":"selected"}" aria-pressed="${!byTemplate}">功能排行</button>
+    <button data-action="analysisView" data-value="templates" class="${byTemplate?"selected":""}" aria-pressed="${byTemplate}">模板排行</button>
+  </div>`;
+  return page("功能与模板排行",`${currentApp().name} · 演示任务`)+
+    card(cardHead(title,"",controls)+table(["排名",byTemplate?"模板":"业务功能","使用次数","使用人数","成功率","金币净消耗"],rows));
 }
 function directoryAppOptions() {
   return option("全部 App","")+db.apps.filter(a=>!userDirectoryFilters.tenant||a.tenant===userDirectoryFilters.tenant)
@@ -660,6 +759,7 @@ function render() {
   renderChrome();
   const pages={overview,tenants:tenantsPage,apps:appsPage,myapps:appsPage,initialize:initializePage,
     features:featuresPage,staff:staffPage,business:businessPage,app:appPage,templates:templatesPage,audit:auditPage,
+    pageAnalytics,taskAnalytics,usageRanking,
     materials:()=>pendingPage("materials","图片、视频及 App 自有素材"),
     support:()=>pendingPage("support","本 App 的用户咨询会话"),
     aiPricing:()=>pendingPage("aiPricing","本 App 各模型规格的用户消耗"),
@@ -720,6 +820,9 @@ function moduleSearch(query="") {
 const handlers = {
   back:()=>{if(navigationIndex>0) history.back();},
   go: target=>{ modal.close(); go(target); },
+  analysisView:view=>{
+    if (route==="pageAnalytics" || route==="usageRanking") go(route,view);
+  },
   openApp: id=>{ modal.close(); selectApp(id); },
   initApp: id=>{ if(isPlatform()) selectApp(id,"initialize"); },
   openWork:value=>{
