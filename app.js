@@ -144,14 +144,14 @@ function say(message) {
 }
 const labels = {
   overview:"平台总览",tenants:"租户管理",apps:"产品管理",initialize:"产品初始化",
-  myapps:"我的 App",staff:"人员与权限",business:"多 App 经营分析",app:"经营概览",features:"功能开关与开放范围",
+  myapps:"我的产品",staff:"人员与权限",business:"多产品经营分析",app:"经营概览",features:"功能开关与开放范围",
   users:"用户",tasks:"生成任务",orders:"订单与支付记录",reports:"投诉建议与举报",products:"付费墙与套餐",templates:"模板库",
   materials:"素材库",support:"在线客服",aiPricing:"AI 消耗规则",
   directory:"用户管理",system:"系统管理",telegram:"Telegram 机器人",audit:"操作审计",
 };
 const aliases = {
   "租户管理":"tenants","功能授权":"tenants","产品管理":"apps","产品初始化":"initialize","平台运行与审计":"audit",
-  "我的 App":"myapps","人员与权限":"staff","多 App 经营分析":"business","功能配置与发布":"features",
+  "我的产品":"myapps","人员与权限":"staff","多产品经营分析":"business","功能配置与发布":"features",
   "素材与创作模板":"templates","用户管理":"users","用户权益":"users","客服与反馈":"support","商品管理":"products",
   "生成任务":"tasks","交易订单":"orders","内容举报":"reports","经营机器人管理（草案）":"telegram",
   "平台协作":"features",
@@ -161,7 +161,7 @@ const aliases = {
 const operationalModules = {
   "平台公共资源": {entity:"公共资源",fields:["资源名称","当前版本","授权范围"],sample:["Portrait Motion","v2.0","星海运营团队"]},
   "模型管理": {entity:"模型绑定",fields:["绑定功能","供应商与模型","规格"],sample:["Viora · 图片创作","演示模型服务 · Image Standard","1080P"]},
-  "AI 预算与成本": {entity:"App 预算",fields:["业务 App","预算金额（USD）","超额策略"],sample:["Viora","2500","仅提醒并继续"],choices:["暂停新 AI 请求","仅提醒并继续"]},
+  "AI 预算与成本": {entity:"产品预算",fields:["业务产品","预算金额（USD）","超额策略"],sample:["Viora","2500","仅提醒并继续"],choices:["暂停新 AI 请求","仅提醒并继续"]},
   "支付管理": {entity:"通道路由",fields:["支付通道","市场与币种","状态"],sample:["UPI","印度 · INR","演示已启用"],choices:["演示已启用","暂停新收款"]},
   "归因配置": {entity:"归因接入",fields:["渠道","事件映射","上报范围"],sample:["AppsFlyer","注册、真实支付","Viora · H5"]},
   "经营机器人管理（草案）": {entity:"推送计划",fields:["计划名称","频率","接收范围"],sample:["经营日报","每日 09:00","平台超级管理员"]},
@@ -173,8 +173,8 @@ const operationalModules = {
   "渠道与推客（草案）": {entity:"推客档案",fields:["推客名称","上级与来源","数据范围"],sample:["Creator A","社媒渠道","本人及直属下级"]},
   "营销短链与落地页（草案）": {entity:"营销链接",fields:["活动名称","落地页路径","渠道与推客"],sample:["创作模板邀新","/discover","Organic"]},
   "投放计划": {entity:"投放计划",fields:["计划名称","目标人群","状态"],sample:["视频创作推广","印度 H5 · 新用户","草稿"],choices:["草稿","运行中","已暂停"]},
-  "流量分发（草案）": {entity:"分发规则",fields:["规则名称","命中来源","素材范围"],sample:["自然流量 A 面","Organic","已授权模板与 App 自有素材"]},
-  "App 归因运营（草案）": {entity:"上报规则",fields:["规则名称","事件名称","状态"],sample:["H5 转化","注册、支付","已启用"],choices:["草稿","已启用","已停止"]},
+  "流量分发（草案）": {entity:"分发规则",fields:["规则名称","命中来源","素材范围"],sample:["自然流量 A 面","Organic","已授权模板与产品自有素材"]},
+  "产品归因运营（草案）": {entity:"上报规则",fields:["规则名称","事件名称","状态"],sample:["H5 转化","注册、支付","已启用"],choices:["草稿","已启用","已停止"]},
   "消息运营": {entity:"通知计划",fields:["消息标题","目标人群","状态"],sample:["本周新模板","已授权通知的活跃用户","草稿"],choices:["草稿","待发送","已停止"]},
 };
 const routeFor = module => aliases[module.name] || module.id;
@@ -183,14 +183,14 @@ const platformModule = name => visibleCatalog[0].modules.find(module=>module.nam
 const appModule = name => visibleCatalog[2].modules.find(module=>module.name===name);
 aliases["角色聊天"] = appModule("角色管理").id;
 for (const [name,title] of [["角色管理","角色与聊天"],["前台内容运营","轮播与营销位"],
-  ["流量分发（草案）","内容投放范围"],["App 归因运营（草案）","来源归因"],["消息运营","端内通知"],["运营诊断","诊断日志"]]) {
+  ["流量分发（草案）","内容投放范围"],["产品归因运营（草案）","来源归因"],["消息运营","端内通知"],["运营诊断","诊断日志"]]) {
   labels[appModule(name).id] = title;
 }
 const appModulePermissions = {
   "前台内容运营":"content","角色管理":"content","角色聊天":"content","图片创作":"content","视频创作":"content",
   "人像工具":"content","剧集与剧情":"content","直播互动":"content","福利与活动":"rewards",
   "渠道与推客（草案）":"growth","营销短链与落地页（草案）":"growth","投放计划":"growth",
-  "流量分发（草案）":"growth","App 归因运营（草案）":"growth","消息运营":"growth",
+  "流量分发（草案）":"growth","产品归因运营（草案）":"growth","消息运营":"growth",
   "运营诊断":"diagnosis",
 };
 const appRoutePermissions = {
@@ -200,8 +200,8 @@ const appRoutePermissions = {
 };
 function moduleAllowed(module, app=currentApp()) {
   if (isPlatform()) return true;
-  if (module.domain === "租户工作台") return role === "owner" || module.name === "我的 App";
-  if (module.domain !== "App 运营" || !app || !inScope(app.id)) return false;
+  if (module.domain === "租户工作台") return role === "owner" || module.name === "我的产品";
+  if (module.domain !== "产品运营" || !app || !inScope(app.id)) return false;
   const permission = appRoutePermissions[routeFor(module)] || appModulePermissions[module.name];
   const index = appModules.indexOf(module.name);
   return hasPermission(permission,app) && (index < 0 || tenantFor(app)?.allowed.includes(index));
@@ -254,8 +254,8 @@ function selectApp(id, target, query="") {
   const app=accessibleApps().find(app=>app.id===id);
   if (app && !target) target=["app",...appGroupsForRole().flatMap(([, ,entries])=>entries.map(([,path])=>path))]
     .find(path=>allowedRoute(path,app));
-  if (!target) { say("当前 App 暂无可打开的业务页面"); return; }
-  if (!app || !allowedRoute(target,app)) { say("当前账号没有该 App 或页面的权限"); return; }
+  if (!target) { say("当前产品暂无可打开的业务页面"); return; }
+  if (!app || !allowedRoute(target,app)) { say("当前账号没有该产品或页面的权限"); return; }
   go(target,query,id,0);
 }
 function page(title, description, actions = "") {
@@ -271,7 +271,7 @@ const appStatus = app => badge(app.status,app.status === "已交付" ? "good" : 
 const productPaths = {"新建 App":"新建产品","现有 App 接入":"接入现有产品"};
 const productSubpage = () => route==="initialize" || route===platformModule("终端交付配置（批次待定）").id;
 function appTable(list, productView = false) {
-  const headers = [productView?"产品与终端":"业务 App","所属租户","交付状态","已生效功能","操作"];
+  const headers = [productView?"产品与终端":"业务产品","所属租户","交付状态","已生效功能","操作"];
   return table(headers, list.map(app => {
     const detail=productView?btn("产品详情","appDetail",app.id,"ghost"):"";
     const action=productView&&!isDelivered(app)
@@ -304,7 +304,7 @@ const platformMain = [
 const platformResources = ["平台公共资源","模型管理","AI 预算与成本","支付管理","归因配置","资源配额（草案）"]
   .map(name=>entry(platformModule(name)));
 const platformSettings = [["系统管理","system","settings"],["Telegram 机器人","telegram","send"]];
-const tenantNav = [["我的 App","myapps","app"],["多 App 经营分析","business","chart"],["人员与权限","staff","people"]];
+const tenantNav = [[labels.myapps,"myapps","app"],[labels.business,"business","chart"],[labels.staff,"staff","people"]];
 const appCommon = [["经营概览","app","grid"]];
 const appEntry = (name,label=name) => [label,routeFor(appModule(name))];
 const appGroups = [
@@ -315,7 +315,7 @@ const appGroups = [
   ]],
   ["投放与增长","chart",[
     appEntry("流量分发（草案）","内容投放范围"),["功能开关与开放范围","features"],
-    appEntry("App 归因运营（草案）","来源归因"),appEntry("投放计划"),appEntry("消息运营","端内通知"),
+    appEntry("产品归因运营（草案）","来源归因"),appEntry("投放计划"),appEntry("消息运营","端内通知"),
     appEntry("渠道与推客（草案）"),appEntry("营销短链与落地页（草案）"),
   ]],
   ["商业化","card",[["付费墙与套餐","products"],["订单与支付记录","orders"],appEntry("福利与活动")]],
@@ -336,21 +336,21 @@ function renderChrome() {
   const activeApp = currentApp();
   const inApp = appRoute();
   const scope = inApp ? activeApp?.name : isPlatform() ? "平台总后台" : currentTenant()?.name;
-  const scopeSub = inApp ? "App 运营工作区" : isPlatform() ? "全部租户与产品" : "租户工作台";
+  const scopeSub = inApp ? "产品运营工作区" : isPlatform() ? "全部租户与产品" : "租户工作台";
   const productCrumb=productSubpage()?btn(labels.apps,"go","apps","ghost")+icon("chevron",13):"";
   document.body.classList.toggle("menu-open",menuOpen);
   document.querySelector("#sidebar").innerHTML = `
     <div class="brand"><span class="brand-logo">${icon("spark",22)}</span><span>AI SaaS <small>统一运营后台</small></span></div>
     <button class="context" data-action="workspace">${tile(inApp?"app":"layers")}<span><b>${esc(scope)}</b><small>${scopeSub}</small></span>${icon("swap",15)}</button>
     <nav class="nav">
-      ${inApp ? navGroup("App 运营",appCommon)+
+      ${inApp ? navGroup("产品运营",appCommon)+
         appGroupsForRole().map(([title,symbol,entries])=>navDetails(title,symbol,entries)).join("") :
         isPlatform() ? navGroup("平台管理",platformMain)+
           navDetails("公共资源与服务","layers",platformResources)+
           navGroup("平台分析",[entry(platformModule("平台经营分析"))])+navGroup("平台设置",platformSettings) :
           navGroup("租户工作台",tenantNav)+navDetails("组织与消息","layers",visibleCatalog[1].modules.filter(m=>!aliases[m.name]).map(entry))}
     </nav>
-    <div class="sidebar-foot"><span class="dot"></span>演示环境 <span style="margin-left:auto">v0.48</span></div>`;
+    <div class="sidebar-foot"><span class="dot"></span>演示环境 <span style="margin-left:auto">v0.49</span></div>`;
   document.querySelector("#topbar").innerHTML = `
     <div class="crumb">${btn("","mobile","","icon mobile-menu","menu").replace('data-action="mobile"','aria-label="菜单" data-action="mobile"')}<button class="btn nav-back" data-action="back" ${navigationIndex===0?"disabled":""}>${icon("back",16)}返回上一页</button><span class="root-crumb" title="${esc(inApp?`${tenantName(activeApp)} · ${scope}`:scope)}">${esc(inApp?`${tenantName(activeApp)} / ${scope}`:scope)}</span><span class="root-chevron">${icon("chevron",13)}</span>${productCrumb}<strong>${esc(labels[route] || moduleById[route]?.name)}</strong></div>
     <div class="top-actions">
@@ -438,12 +438,12 @@ const option = (label,value,selected=false) => `<option value="${esc(value)}" ${
 const select = (label,name,options) => `<label class="field"><span>${esc(label)}</span><select name="${name}">${options.join("")}</select></label>`;
 const check = (name,value,label,on=false) => `<label><input type="checkbox" name="${name}" value="${esc(value)}" ${on?"checked":""}>${esc(label)}</label>`;
 function tenantsPage() {
-  return page("租户管理","管理租户档案、最高管理员、业务 App 和功能授权。",btn("新建租户","newTenant","","primary","plus"))+
+  return page("租户管理","管理租户档案、最高管理员、业务产品和功能授权。",btn("新建租户","newTenant","","primary","plus"))+
     card(cardHead("租户列表")+`<div class="filters"><input aria-label="筛选租户" placeholder="搜索租户名称或管理员" data-filter="tenants"><select aria-label="租户状态" data-filter="tenants"><option value="">全部状态</option><option>启用</option><option>停用</option></select></div><div id="filtered-tenants">${tenantRows()}</div>`);
 }
 function tenantRows(query="",state="") {
   const list=db.tenants.filter(t=>`${t.name} ${t.owner}`.toLowerCase().includes(query) && (!state || state===(t.active?"启用":"停用")));
-  return table(["租户","最高管理员","关联 App","获授模块","状态","操作"],list.map(t=>[
+  return table(["租户","最高管理员","关联产品","获授模块","状态","操作"],list.map(t=>[
     `<span class="table-name">${tile("people")}${esc(t.name)}</span>`,esc(t.owner),db.apps.filter(a=>a.tenant===t.id).map(a=>esc(a.name)).join("、")||"—",
     `${t.allowed.length} 项`,badge(t.active?"启用":"停用",t.active?"good":"gray"),
     btn("详情","tenantDetail",t.id,"ghost")
@@ -453,9 +453,9 @@ function appsPage() {
   const onlyMine = route === "myapps";
   const apps=accessibleApps();
   return page(onlyMine?labels.myapps:labels.apps,
-    onlyMine?"选择有权管理的 App 进入运营工作区。":"管理产品、终端和交付，覆盖 H5、Web 和移动客户端。",
+    onlyMine?"选择有权管理的产品进入运营工作区。":"管理产品、终端和交付，覆盖 H5、Web 和移动客户端。",
     onlyMine?"":btn("创建 / 登记产品","newApp","","primary","plus"))+
-    card(cardHead(onlyMine?"业务 App":"产品列表",`${apps.length} 个${onlyMine?" App":"产品"}`)+appTable(apps,!onlyMine));
+    card(cardHead("产品列表",`${apps.length} 个产品`)+appTable(apps,!onlyMine));
 }
 function permissionChecks(name, options, selected, ceiling=Object.keys(permissions)) {
   return `<div class="checks permission-options">${Object.entries(options).filter(([key])=>ceiling.includes(key))
@@ -464,14 +464,14 @@ function permissionChecks(name, options, selected, ceiling=Object.keys(permissio
 function initializePage() {
   const app=currentApp();
   const fallback = app.type==="现有 App 接入" ?
-    [[app.name,app.market,"沿用现有入口"],["现有配置","保留现网导航","盘点发布版本"],["租户授权","按 App 核对模型及功能依赖"],["沿用现网内容","保留商品和消耗规则"],["核对模型绑定","保留在途回调","核对现网存储"],["确认权限和配置版本","账号、订单、权益、任务和作品"]]:
+    [[app.name,app.market,"沿用现有入口"],["现有配置","保留现网导航","盘点发布版本"],["租户授权","按产品核对模型及功能依赖"],["沿用现网内容","保留商品和消耗规则"],["核对模型绑定","保留在途回调","核对现网存储"],["确认权限和配置版本","账号、订单、权益、任务和作品"]]:
     [[app.name,app.market,"平台维护"],["初始化模板 v1","平台预设导航","建立配置快照"],["租户授权","检查模块内部依赖"],["预置基础素材","配置初始商品和消耗"],["AI 模型绑定","按实际需要接入","按需配置"],["检查可见范围","准备交付快照"]];
   return page(labels.initialize,"为新产品准备运营配置，或为现有产品建立接入基线。",isDelivered(app)?btn("进入运营工作区","openApp",app.id,"primary","arrow"):"")+
     `<div class="card pad" style="margin-bottom:14px"><div class="actions">${appName(app)} ${appStatus(app)} ${badge(productPaths[app.type]||app.type)} <select aria-label="初始化目标产品" data-change="init-app">${db.apps.map(a=>option(a.name,a.id,a.id===app.id)).join("")}</select></div></div>
     <div class="flow-layout"><div class="card steps">${steps.map((s,i)=>`<button class="step ${step===i?"selected":""}" aria-current="${step===i?"step":"false"}" data-action="step" data-value="${i}"><span aria-hidden="true">${app.done.includes(i)?icon("check",13):i+1}</span>${s}</button>`).join("")}</div>
     <section class="card pad"><h2>${steps[step]}</h2><p>${app.type==="现有 App 接入"?"核对现有值，按确认结果记录本次接入基线。":"核对预置内容，按目标产品保存准备结果。"}</p>
     <form data-form="step">
-    ${stepFields[step].map((label,i)=>field(label,`f${i}`,app.fields[step]?.[i]??fallback[step][i],"text","required")).join("")}
+    ${stepFields[step].map((label,i)=>field(label,`f${i}`,productWording(app.fields[step]?.[i]??fallback[step][i]),"text","required")).join("")}
     ${step===2?`<div class="checks">${appModules.map((m,i)=>tenantFor(app).allowed.includes(i)?check("ready",i,`${m}依赖已核对`,app.ready.includes(i)):"").join("")}</div>`:""}
     ${step===5?`<div class="inline-note">${deliveryBlockers(app).map(esc).join("。")||"六步核对及已启用功能准备就绪。交付后由租户决定功能的开放时间。"}</div>`:""}
     <div class="actions"><button class="btn primary" type="submit">保存并标记已核对</button>${step===5?btn("确认交付","deliver",app.id,"", "check").replace("<button ","<button type=\"button\" "):""}</div></form>
@@ -495,9 +495,9 @@ function featureState(app,i) {
 function featuresPage() {
   const app = currentApp();
   return page(labels.features,`${app.name} · 查看授权、依赖、启用和用户侧生效状态。`,btn("预览用户侧","previewFeatures","","","app")+btn("发布启用配置","publish","","primary","arrow"))+
-  (!isDelivered(app)?`<div class="inline-note">当前 App 尚未交付。已有线上功能继续显示，新增配置在交付后发布。</div>`:"")+
+  (!isDelivered(app)?`<div class="inline-note">当前产品尚未交付。已有线上功能继续显示，新增配置在交付后发布。</div>`:"")+
   card(cardHead("业务功能", "独立工具关闭只影响自身入口，已启用业务可继续使用已配置的内部依赖。")+table(
-    ["功能模块","租户授权","依赖准备","App 启用","用户侧生效"],
+    ["功能模块","租户授权","依赖准备","产品启用","用户侧生效"],
     appModules.map((label,i)=>{
       const s=featureState(app,i);
       return [esc(label),badge(s.granted?"已授权":"未授权",s.granted?"good":"gray"),badge(s.ready?"已就绪":"待平台准备",s.ready?"good":"warn"),
@@ -508,9 +508,9 @@ function featuresPage() {
 }
 function staffPage() {
   const list=accessibleApps();
-  if(tenantId!=="t1") return page("人员与权限","按 App 管理员工和操作权限。")+card('<div class="empty">当前租户暂无演示员工</div>');
-  return page("人员与权限","同一员工可以在不同 App 拥有不同角色和操作范围。")+
-    card(cardHead("员工账号")+table(["员工","已分配 App 和权限","操作"],Object.keys(db.grants).map(id=>[
+  if(tenantId!=="t1") return page("人员与权限","按产品分配员工权限。")+card('<div class="empty">当前租户暂无演示员工</div>');
+  return page("人员与权限","同一员工可以在不同产品拥有不同角色和操作范围。")+
+    card(cardHead("员工账号")+table(["员工","已分配产品和权限","操作"],Object.keys(db.grants).map(id=>[
       `<span class="table-name">${tile("people")}${accounts[id]}</span>`,
       list.map(app=>[app,assignedPermissions(id,app.id).filter(key=>permissionCeiling(app).includes(key))])
         .filter(([,keys])=>keys.length).map(([app,keys])=>`${esc(app.name)} · ${keys.length} 项`).join("　")||"尚未分配",
@@ -518,9 +518,9 @@ function staffPage() {
     ])));
 }
 function businessPage() {
-  return page("多 App 经营分析","按获授 App 汇总经营与运行指标。")+
-    card(cardHead("App 对比")+table(["业务 App","用户记录","订单记录","生成记录","操作"],accessibleApps().map(a=>[
-      appName(a),db.users.filter(u=>u.app===a.id).length,db.orders.filter(o=>o.app===a.id).length,db.tasks.filter(t=>t.app===a.id).length,btn("查看 App","openApp",a.id,"ghost"),
+  return page(labels.business,"按获授产品汇总经营与运行指标。")+
+    card(cardHead("产品对比")+table(["业务产品","用户记录","订单记录","生成记录","操作"],accessibleApps().map(a=>[
+      appName(a),db.users.filter(u=>u.app===a.id).length,db.orders.filter(o=>o.app===a.id).length,db.tasks.filter(t=>t.app===a.id).length,btn("查看产品","openApp",a.id,"ghost"),
     ])));
 }
 const currentAppRecords = rows => rows.filter(row=>row.app===appId);
@@ -547,13 +547,13 @@ function appPage() {
   const drilldown=(target,label)=>allowedRoute(target)?btn(label,"go",target,"ghost","arrow"):"—";
   return page("经营概览",`${app.name} · ${app.market} · 演示数据`,appStatus(app))+
     overviewMetrics([
-      ["用户记录",formatNumber(currentAppRecords(db.users).length),"people","当前 App 的演示用户"],
+      ["用户记录",formatNumber(currentAppRecords(db.users).length),"people","当前产品的演示用户"],
       ["支付订单",formatNumber(orders.length),"card",`${orders.filter(order=>order.status==="已到账").length} 笔权益已到账`],
       ["AI 任务",formatNumber(tasks.length),"ai",`${stats.completed} 次已交付`],
       ["金币净消耗",formatNumber(stats.net),"chart","任务扣减减去返还"],
     ])+
     `<div class="overview-grid">
-      ${card(cardHead("当前 App 待办")+workQueue(pendingWork([app])))}
+      ${card(cardHead("当前产品待办")+workQueue(pendingWork([app])))}
       ${card(cardHead("已对用户开放的功能")+`<div class="pad actions">${active.length?active.map(name=>badge(name,"good")).join(""):"暂无已上线功能"}</div>`)}
     </div>`+
     card(cardHead("经营报表")+table(["经营维度","关注指标","明细"],[
@@ -562,7 +562,7 @@ function appPage() {
       ["AI 生产","任务量、成功率与用户资产净消耗",drilldown("taskAnalytics","查看 AI 任务与消耗")],
       ["支付与收入","成交、到账、支付日期、时区与币种",drilldown("orders","查看订单")],
       ["投放转化","访问、点击、业务漏斗及展示热度",drilldown("pageAnalytics","查看访问与点击")],
-      ["App 运营操作记录","查看业务变更及处理记录",drilldown(routeFor(appModule("运营诊断")),"查看诊断日志")],
+      ["产品运营操作记录","查看业务变更及处理记录",drilldown(routeFor(appModule("运营诊断")),"查看诊断日志")],
     ]));
 }
 const demoPageEvents = [
@@ -589,7 +589,7 @@ function taskAnalytics() {
   const features=[...new Set(tasks.map(task=>task.feature))];
   return page("AI 任务与消耗统计",`${currentApp().name} · 演示任务`,allowedRoute("tasks")?btn("查看生成任务","go","tasks","ghost","arrow"):"")+
     overviewMetrics([
-      ["任务总数",formatNumber(tasks.length),"ai","当前 App 的演示任务"],
+      ["任务总数",formatNumber(tasks.length),"ai","当前产品的演示任务"],
       ["成功率",stats.successRate,"chart","已交付／已交付及最终失败"],
       ["金币扣减",formatNumber(stats.deducted),"card",`已返还 ${formatNumber(stats.refunded)}`],
       ["金币净消耗",formatNumber(stats.net),"grid","金币扣减减去返还"],
@@ -622,7 +622,7 @@ function usageRanking() {
     card(cardHead(title,"",controls)+table(["排名",byTemplate?"模板":"业务功能","使用次数","使用人数","成功率","金币净消耗"],rows));
 }
 function directoryAppOptions() {
-  return option("全部 App","")+db.apps.filter(a=>!userDirectoryFilters.tenant||a.tenant===userDirectoryFilters.tenant)
+  return option("全部产品","")+db.apps.filter(a=>!userDirectoryFilters.tenant||a.tenant===userDirectoryFilters.tenant)
     .map(a=>option(a.name,a.id,a.id===userDirectoryFilters.app)).join("");
 }
 function directoryRows() {
@@ -632,7 +632,7 @@ function directoryRows() {
     return owner&&(!tenant||owner.tenant===tenant)&&(!app||user.app===app)&&
       (!status||userProfile(user).status===status)&&`${user.name} ${user.id}`.toLowerCase().includes(query.trim().toLowerCase());
   });
-  return table(["用户","所属租户 / App","账号类型","状态","注册日期","最近活跃","操作"],rows.map(user=>{
+  return table(["用户","所属租户 / 产品","账号类型","状态","注册日期","最近活跃","操作"],rows.map(user=>{
     const owner=db.apps.find(a=>a.id===user.app);
     const profile=userProfile(user);
     return [
@@ -640,31 +640,31 @@ function directoryRows() {
       `<span class="table-name"><span>${esc(owner.name)}<small>${esc(tenantName(owner))}</small></span></span>`,
       esc(profile.type||"—"),badge(profile.status||"未知",profile.status==="正常"?"good":profile.status==="受限"?"warn":"gray"),
       esc(profile.joined||"—"),esc(profile.lastActive||"—"),
-      btn("查看 App 用户","directoryUser",`${user.app}:${user.id}`,"ghost","arrow"),
+      btn("查看产品用户","directoryUser",`${user.app}:${user.id}`,"ghost","arrow"),
     ];
   }));
 }
 function directoryPage() {
   const {query,tenant,status}=userDirectoryFilters;
-  return page("用户管理","跨租户和 App 定位终端用户。用户详情与售后操作按所属 App 管理。")+
+  return page("用户管理","跨租户和产品定位终端用户。用户详情与售后操作按所属产品管理。")+
     card(cardHead("终端用户")+`<div class="filters">
       <input aria-label="搜索终端用户" placeholder="搜索用户编号或昵称" data-user-filter="query" value="${esc(query)}">
       <select aria-label="所属租户" data-user-filter="tenant">${option("全部租户","")}${db.tenants.map(t=>option(t.name,t.id,t.id===tenant)).join("")}</select>
-      <select aria-label="所属 App" data-user-filter="app">${directoryAppOptions()}</select>
+      <select aria-label="所属产品" data-user-filter="app">${directoryAppOptions()}</select>
       <select aria-label="账号状态" data-user-filter="status">${option("全部状态","")}${["正常","受限"].map(s=>option(s,s,s===status)).join("")}</select>
       ${btn("清除筛选","resetDirectory","","ghost")}
     </div><div id="directory-results">${directoryRows()}</div>`);
 }
 const records = () => ({
-  users:{title:labels.users,description:"查找本 App 用户并查看账号及权益。",list:db.users,headers:["用户","用户编号","金币余额","操作"],render:u=>[
+  users:{title:labels.users,description:"查找本产品用户并查看账号及权益。",list:db.users,headers:["用户","用户编号","金币余额","操作"],render:u=>[
     `<span class="table-name">${tile("people")}${esc(u.name)}</span>`,esc(u.id),u.balance,btn("查看用户","userDetail",u.id,"ghost")]},
   tasks:{title:"生成任务",description:"查看生成进度、实际扣减、交付和故障返还。",list:db.tasks,headers:["任务编号","用户","功能","任务状态","实际扣减","返还","操作"],render:t=>[
     esc(t.id),esc(t.user),esc(t.feature),badge(t.status,t.status==="已交付"?"good":"warn"),t.debit,t.refund,btn("查看任务","taskDetail",t.id,"ghost")]},
   orders:{title:labels.orders,description:"查看支付状态、原商品快照和权益到账情况。",list:db.orders,headers:["订单编号","用户","商品","原币金额","状态","操作"],render:o=>[
     esc(o.id),esc(o.user),esc(o.name),esc(o.amount),badge(o.status,o.status==="已到账"?"good":"warn"),btn("查看订单","orderDetail",o.id,"ghost")]},
-  reports:{title:labels.reports,description:"查看本 App 的内容举报、进度及处置结果。",list:db.reports,headers:["举报编号","举报对象","原因","状态","操作"],render:r=>[
+  reports:{title:labels.reports,description:"查看本产品的内容举报、进度及处置结果。",list:db.reports,headers:["举报编号","举报对象","原因","状态","操作"],render:r=>[
     esc(r.id),esc(r.name),esc(r.reason),badge(r.status,r.status==="已处理"?"good":"warn"),btn("查看举报","reportDetail",r.id,"ghost")]},
-  products:{title:labels.products,description:"维护当前 App 的商品售价和到账权益，历史订单沿用建单快照。",list:db.products,headers:["商品编号","商品","价格","到账金币","操作"],render:p=>[
+  products:{title:labels.products,description:"维护当前产品的商品售价和到账权益，历史订单沿用建单快照。",list:db.products,headers:["商品编号","商品","价格","到账金币","操作"],render:p=>[
     esc(p.id),esc(p.name),p.price,p.units,btn("编辑商品","editProduct",p.id,"ghost")]},
 });
 function recordRows(key,query="") {
@@ -698,24 +698,36 @@ function exportCsv(name, rows) {
 }
 function templatesPage() {
   const app=currentApp();
-  return page("模板库",`${app.name} · 管理本 App 获准使用的公共模板。`)+
+  return page("模板库",`${app.name} · 管理本产品获准使用的公共模板。`)+
     card(cardHead("公共模板版本")+table(["模板","来源","当前使用版本","可用版本","操作"],[
       ["Portrait Motion",badge("平台公共模板"),`v${app.template}.0`,"v2.0",app.template===2?badge("已使用最新版","good"):btn("查看并更新","template","","primary","arrow")],
     ]));
 }
+const previousProductWording = {
+  "按 App 核对模型及功能依赖":"按产品核对模型及功能依赖",
+  "已授权模板与 App 自有素材":"已授权模板与产品自有素材",
+};
+const productWording = value => Object.hasOwn(previousProductWording,value)?previousProductWording[value]:value;
 function auditPage() {
-  return page("操作审计","查看实际操作者、目标 App、动作和时间。")+
-    card(table(["时间","操作者","目标 App","操作"],db.audit.map(a=>[esc(a.at),esc(a.who),esc(db.apps.find(app=>app.id===a.app)?.name||"平台"),esc(a.action)])));
+  return page("操作审计","查看实际操作者、目标产品、动作和时间。")+
+    card(table(["时间","操作者","目标产品","操作"],db.audit.map(({at,who,app,action})=>[
+      esc(at),esc(who),esc(db.apps.find(item=>item.id===app)?.name||"平台"),
+      esc(action.replace(/^创建 App /,"创建产品 ")
+        .replace(/^更新 App 授权上限 · /,"更新产品授权上限 · ")
+        .replace(/^发布 App 功能配置$/,"发布产品功能配置")
+        .replace(/^(更新 .+ 的) App 权限$/,"$1产品权限")
+        .replace(/^保存App 预算 /,"保存产品预算 ")),
+    ])));
 }
 function systemPage() {
   const safety = platformModule("平台安全设置");
   return page("系统管理","查看平台管理员、后台菜单、运行审计和安全设置。")+
     `<div class="stack">
       ${card(cardHead("平台账号与角色")+table(["管理角色","管理范围","账号状态"],[
-        ["平台超级管理员","平台及所有租户与 App",badge("演示账号","good")],
+        ["平台超级管理员","平台及所有租户与产品",badge("演示账号","good")],
       ]))}
       <div class="grid">
-        ${card(`<div class="module">${tile("audit")}<h2>运行与审计</h2><p>按操作者和目标 App 查看操作记录。</p>${btn("查看操作审计","go","audit","ghost","arrow")}</div>`)}
+        ${card(`<div class="module">${tile("audit")}<h2>运行与审计</h2><p>按操作者和目标产品查看操作记录。</p>${btn("查看操作审计","go","audit","ghost","arrow")}</div>`)}
         ${card(`<div class="module">${tile("shield")}<h2>平台安全设置</h2><p>查看身份校验、验签、凭据和运行限制的设计。</p>${btn("查看安全设置","go",safety.id,"ghost","arrow")}</div>`)}
       </div>
     </div>`;
@@ -739,7 +751,6 @@ function discoveryGroups() {
       destinations.set(id,destination);
     }
     if(domain===platform) {
-      destinations.get("apps").terms.push("App 管理","App管理");
       destinations.get("directory").terms.push("终端用户","跨租户查找");
       destinations.get("system").terms.push("平台账号","后台菜单","运行审计","安全设置");
     }
@@ -757,22 +768,23 @@ function modulePage(module, description=module.domain) {
     `<div class="stack">${card(cardHead(`${config.entity}列表`)+table([...config.fields,"操作"],rows))}${catalogCard}</div>`;
 }
 function moduleKey(module) {
-  return module.domain==="App 运营"?`${appId}:${module.id}`:module.id;
+  return module.domain==="产品运营"?`${appId}:${module.id}`:module.id;
 }
 function moduleRecords(module) {
   const saved=db.moduleRecords?.[moduleKey(module)];
-  if(saved) return saved;
+  if(saved) return module.name==="流量分发（草案）"
+    ? saved.map(([name,source,material])=>[name,source,productWording(material)]) : saved;
   const config=operationalModules[module.name];
-  return module.domain==="App 运营"&&appId!=="viora"?[]:[config.sample];
+  return module.domain==="产品运营"&&appId!=="viora"?[]:[config.sample];
 }
 function render() {
   renderChrome();
   const pages={overview,tenants:tenantsPage,apps:appsPage,myapps:appsPage,initialize:initializePage,
     features:featuresPage,staff:staffPage,business:businessPage,app:appPage,templates:templatesPage,audit:auditPage,
     pageAnalytics,taskAnalytics,usageRanking,
-    materials:()=>pendingPage("materials","图片、视频及 App 自有素材"),
-    support:()=>pendingPage("support","本 App 的用户咨询会话"),
-    aiPricing:()=>pendingPage("aiPricing","本 App 各模型规格的用户消耗"),
+    materials:()=>pendingPage("materials","图片、视频及产品自有素材"),
+    support:()=>pendingPage("support","本产品的用户咨询会话"),
+    aiPricing:()=>pendingPage("aiPricing","本产品各模型规格的用户消耗"),
     directory:directoryPage,system:systemPage,telegram:()=>modulePage(platformModule("经营机器人管理（草案）"),"编辑演示推送计划，查看接收权限、查询指令和告警配置范围。")};
   root.innerHTML=pages[route]?pages[route]():records()[route]?recordPage(route):modulePage(moduleById[route]);
   drawChart();
@@ -802,7 +814,7 @@ function showUser(id,section="profile") {
   const ownRecords=list=>list.filter(record=>record.user===id&&record.app===appId);
   const ledger=ownRecords(db.ledger);
   const sections={
-    profile:facts([["用户编号",id],["所属租户",tenantName(currentApp())],["所属 App",currentApp().name],["账号类型",profile.type||"—"],["账号状态",profile.status||"—"],
+    profile:facts([["用户编号",id],["所属租户",tenantName(currentApp())],["所属产品",currentApp().name],["账号类型",profile.type||"—"],["账号状态",profile.status||"—"],
       ["绑定邮箱",profile.contact||"—"],["注册来源",profile.source||"—"],["注册日期",profile.joined||"—"],["最近活跃",profile.lastActive||"—"]])+
       `<h3 class="detail-heading">权益摘要</h3>${facts([["金币余额",user.balance],["权益流水",`${ledger.length} 条演示记录`]])}`,
     ledger:facts([["金币余额",user.balance]])+
@@ -819,9 +831,13 @@ function showUser(id,section="profile") {
     `<button data-action="userSection" data-value="${esc(id)}:${key}" class="${section===key?"selected":""}" aria-pressed="${section===key}">${label}</button>`).join("")}</div>`+
     sections[section]+(hasPermission("compensate")?dialogActions(btn("补发金币","compensate",id,"primary","plus")):""));
 }
+const legacySearchTerms = {
+  apps:["App 管理","App管理"],myapps:["我的 App"],business:["多 App 经营分析"],app:["单 App 经营分析"],
+};
 function moduleSearch(query="") {
   const needle=query.trim().toLowerCase();
-  const results=discoveryGroups().flatMap(({name,items})=>items.filter(item=>[item.name,...item.terms].some(term=>term.toLowerCase().includes(needle))).map(item=>{
+  const results=discoveryGroups().flatMap(({name,items})=>items.filter(item=>
+    [item.name,...item.terms,...(legacySearchTerms[item.id]||[])].some(term=>term.toLowerCase().includes(needle))).map(item=>{
     const detail=needle&&item.terms.find(term=>term!==item.name&&term.toLowerCase().includes(needle));
     return `<button class="btn" data-action="searchResult" data-value="${item.id}"><span><b>${esc(item.name)}</b><small>${esc(name)}${detail?" · "+esc(detail):""}</small></span>${icon("arrow",14)}</button>`;
   })).join("");
@@ -856,7 +872,7 @@ const handlers = {
       selectApp((current||apps[0]).id,target);
       return;
     }
-    openDialog("选择 App",`<div class="mini-list">${apps.map(app=>btn(`${app.name} · ${tenantName(app)}`,"searchApp",`${app.id}:${target}`,"","app")).join("")}</div>`);
+    openDialog("选择产品",`<div class="mini-list">${apps.map(app=>btn(`${app.name} · ${tenantName(app)}`,"searchApp",`${app.id}:${target}`,"","app")).join("")}</div>`);
   },
   searchApp:value=>{
     const [id,target]=value.split(":");
@@ -884,23 +900,23 @@ const handlers = {
     if(!t) return;
     const apps=db.apps.filter(a=>a.tenant===id);
     openDialog("租户详情",facts([["租户名称",t.name],["最高管理员",t.owner],["获授功能",t.allowed.map(i=>appModules[i]).join("、")],["状态",t.active?"启用":"停用"]])+
-      table(["关联 App","授权上限","操作"],apps.map(a=>[esc(a.name),`${permissionCeiling(a).length} 项`,btn("设置 App 授权上限","grantApp",a.id,"ghost")]))+
+      table(["关联产品","授权上限","操作"],apps.map(a=>[esc(a.name),`${permissionCeiling(a).length} 项`,btn("设置产品授权上限","grantApp",a.id,"ghost")]))+
       dialogActions(btn("设置租户功能","grantTenant",id,"primary")));
   },
   grantApp:id=>{
     const app=db.apps.find(item=>item.id===id);
     if(!isPlatform()||!app) return;
     const assigned=permissionCeiling(app);
-    openForm(`App 授权上限 · ${app.name}`,"grantApp",
+    openForm(`产品授权上限 · ${app.name}`,"grantApp",
       '<p class="inline-note">收回的权限立即失效。重新开放时，仍持有该项授权的员工会自动恢复。</p>'+
       '<h3>日常业务</h3>'+permissionChecks("ceiling",businessPermissions,assigned)+
-      '<h3>独立授权</h3>'+permissionChecks("ceiling",exceptionPermissions,assigned),"保存 App 授权",id);
+      '<h3>独立授权</h3>'+permissionChecks("ceiling",exceptionPermissions,assigned),"保存产品授权",id);
   },
   grantTenant:id=>{
     if(!isPlatform()) return;
     const t=db.tenants.find(t=>t.id===id);
     if(!t) return;
-    openForm(`设置授权 · ${t.name}`,"grantTenant",`<p class="inline-note">租户在获授范围内为 App 启用功能并分配人员。</p><div class="checks">${appModules.map((m,i)=>check("modules",i,m,t.allowed.includes(i))).join("")}</div>`,"保存授权",id);
+    openForm(`设置授权 · ${t.name}`,"grantTenant",`<p class="inline-note">租户在获授范围内为产品启用功能并分配人员。</p><div class="checks">${appModules.map((m,i)=>check("modules",i,m,t.allowed.includes(i))).join("")}</div>`,"保存授权",id);
   },
   newApp:()=>{
     if(!isPlatform()) return;
@@ -925,7 +941,7 @@ const handlers = {
     if(!isPlatform()||app.id!==id) return;
     const blockers=deliveryBlockers(app);
     if(blockers.length) {say(blockers.join("。"));return;}
-    if(isDelivered(app)) {say("该 App 已交付");return;}
+    if(isDelivered(app)) {say("该产品已交付");return;}
     app.status="已交付"; log("确认初始化交付");
     render(); say(`${app.name} 已交付租户`);
   },
@@ -952,7 +968,7 @@ const handlers = {
     if(!["platform","owner"].includes(role)||!db.grants[id]) return;
     const list=accessibleApps().filter(a=>a.tenant==="t1");
     openForm(`员工授权 · ${accounts[id]}`,"staff",
-      '<p>展开 App，勾选员工需要的业务功能。独立操作权限在下方单独分配。</p>'+
+      '<p>展开产品，勾选员工需要的业务功能。独立操作权限在下方单独分配。</p>'+
       (list.map((a,index)=>{
         const selected=assignedPermissions(id,a.id);
         const ceiling=permissionCeiling(a);
@@ -962,7 +978,7 @@ const handlers = {
           <h3>日常业务</h3>${permissionChecks(name,businessPermissions,selected,ceiling)}
           <h3>独立授权</h3>${permissionChecks(name,exceptionPermissions,selected,ceiling)}
           ${suspended.length?'<h3>平台暂停的权限</h3><p>取消勾选可撤销员工原有授权。</p>'+permissionChecks(name,permissions,selected,suspended):""}</details>`;
-      }).join("")||'<p class="inline-note">暂无可授权的 App。</p>'),"保存权限",id);
+      }).join("")||'<p class="inline-note">暂无可授权的产品。</p>'),"保存权限",id);
   },
   template:()=>{
     if(!hasPermission("templates")||currentApp().template===2) return;
@@ -1087,8 +1103,8 @@ const forms = {
     const app=db.apps.find(item=>item.id===id);
     if(!isPlatform()||!app) return;
     app.businessCeiling=Object.keys(permissions).filter(key=>data.getAll("ceiling").includes(key));
-    log(`更新 App 授权上限 · ${app.name}`,id);
-    completed("App 授权上限已更新");
+    log(`更新产品授权上限 · ${app.name}`,id);
+    completed("产品授权上限已更新");
   },
   app:data=>{
     if(!isPlatform()) return;
@@ -1113,7 +1129,7 @@ const forms = {
     const app=currentApp();
     if(!hasPermission("features")||!isDelivered(app)) return;
     app.live=app.enabled.filter(i=>featureState(app,i).granted&&featureState(app,i).ready);
-    log("发布 App 功能配置"); completed("用户侧功能已更新");
+    log("发布产品功能配置"); completed("用户侧功能已更新");
   },
   staff:(data,id)=>{
     if(!["platform","owner"].includes(role)||!db.grants[id]) return;
@@ -1122,11 +1138,11 @@ const forms = {
       const previous=assignedPermissions(id,a.id);
       db.grants[id][a.id]=data.getAll(`grant-${a.id}`).filter(key=>ceiling.includes(key)||previous.includes(key));
     });
-    log(`更新 ${accounts[id]} 的 App 权限`,""); completed("员工权限已保存");
+    log(`更新 ${accounts[id]} 的产品权限`,""); completed("员工权限已保存");
   },
   template:()=>{
     if(!hasPermission("templates")) return;
-    currentApp().template=2; log("主动更新公共模板到 v2.0"); completed("当前 App 已更新到 v2.0");
+    currentApp().template=2; log("主动更新公共模板到 v2.0"); completed("当前产品已更新到 v2.0");
   },
   compensate:(data,id)=>{
     const u=getRecord(db.users,id),units=Number(data.get("units")),reason=data.get("reason").trim();
@@ -1163,7 +1179,7 @@ const forms = {
     else records[Number(index)]=values;
     db.moduleRecords||={};
     db.moduleRecords[moduleKey(module)]=records;
-    log(`保存${config.entity} ${values[0]}`,module.domain==="App 运营"?appId:"");
+    log(`保存${config.entity} ${values[0]}`,module.domain==="产品运营"?appId:"");
     completed("演示配置已保存");
   },
 };
